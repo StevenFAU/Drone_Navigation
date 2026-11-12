@@ -13,7 +13,7 @@ import time
 
 import rclpy
 from geometry_msgs.msg import PoseStamped
-from mavros_msgs.msg import State
+from mavros_msgs.msg import PositionTarget, State
 from mavros_msgs.srv import CommandBool, CommandTOL, SetMode, StreamRate
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
@@ -38,6 +38,7 @@ class FlightNode(Node):
         self.create_subscription(PoseStamped, '/mavros/local_position/pose', self._on_pose,
                                  qos_profile_sensor_data)
         self.setpoint_pub = self.create_publisher(PoseStamped, '/mavros/setpoint_position/local', 10)
+        self.raw_pub = self.create_publisher(PositionTarget, '/mavros/setpoint_raw/local', 10)
 
         self.mode_cli = self.create_client(SetMode, '/mavros/set_mode')
         self.arm_cli = self.create_client(CommandBool, '/mavros/cmd/arming')
@@ -101,6 +102,33 @@ class FlightNode(Node):
         msg.pose.orientation.z = math.sin(yaw / 2.0)
         msg.pose.orientation.w = math.cos(yaw / 2.0)
         self.setpoint_pub.publish(msg)
+
+    def send_velocity(self, vx, vy, vz, yaw_rate=0.0):
+        """Velocity target in ENU (m/s) plus yaw rate (rad/s, + = counter-clockwise from above).
+
+        ArduPilot stops if these stop arriving for ~3 s, so stream them at ~10 Hz.
+        MAVROS converts ENU to ArduPilot's NED.
+        """
+        msg = PositionTarget()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+        msg.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
+        msg.type_mask = (PositionTarget.IGNORE_PX | PositionTarget.IGNORE_PY | PositionTarget.IGNORE_PZ
+                         | PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY
+                         | PositionTarget.IGNORE_AFZ | PositionTarget.IGNORE_YAW)
+        msg.velocity.x, msg.velocity.y, msg.velocity.z = float(vx), float(vy), float(vz)
+        msg.yaw_rate = float(yaw_rate)
+        self.raw_pub.publish(msg)
+
+    def rotation(self):
+        """3x3 rotation matrix body (FLU) -> local ENU from the current attitude."""
+        q = self.pose.orientation
+        w, x, y, z = q.w, q.x, q.y, q.z
+        return (
+            (1 - 2 * (y * y + z * z), 2 * (x * y - w * z), 2 * (x * z + w * y)),
+            (2 * (x * y + w * z), 1 - 2 * (x * x + z * z), 2 * (y * z - w * x)),
+            (2 * (x * z - w * y), 2 * (y * z + w * x), 1 - 2 * (x * x + y * y)),
+        )
 
     # --- flight phases ---
     def connect_and_arm(self):

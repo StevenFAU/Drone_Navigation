@@ -128,6 +128,57 @@ only ~9 px wide at 6 m and not detected, which is why the camera runs at 1280x72
 For the real drone, print `sim/models/aruco_marker/materials/textures/marker.png` so the black
 square measures exactly 0.20 m, and leave a white margin around it.
 
+## Marker approach
+
+With the sim running, in a second tab:
+
+```bash
+source setup/env.sh
+ros2 run drone_mission marker_approach
+```
+
+It takes off to 1.5 m, yaws in place until the camera sees the marker (gives up after a full
+turn), flies to 1 m in front of it, holds there for 5 s, and lands. Control is proportional,
+streamed as velocity setpoints at 10 Hz: yaw rate from the bearing to the marker, climb rate
+from the height difference, and horizontal velocity toward the spot `target_range` out along
+the marker's normal (which also squares the drone up to the marker). The 5 s only counts while
+all of these hold with a fresh detection; any excursion restarts it.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `target_range` | 1.0 | m from the marker plane (min 0.5) |
+| `hold_time` | 5.0 | s continuously in tolerance |
+| `range_tol` / `lateral_tol` / `height_tol` | 0.10 / 0.15 / 0.10 | m |
+| `bearing_tol_deg` | 5.0 | deg |
+| `marker_id` / `marker_size` | 0 / 0.20 | id (-1 = any) and side in m |
+| `takeoff_altitude` | 1.5 | m |
+| `max_speed` / `max_climb` / `max_yaw_rate_deg` | 0.5 / 0.3 / 30 | m/s, m/s, deg/s |
+| `k_pos` / `k_z` / `k_yaw` | 0.5 / 0.8 / 1.0 | proportional gains |
+| `search_rate_deg` | 20 | deg/s while searching |
+| `lost_timeout` | 10 | s without a detection before aborting (lands) |
+
+Each run writes `logs/marker_<time>.csv` (10 Hz: phase, range/lateral/height/bearing errors,
+commanded velocities, pose) and prints mean/worst errors over the hold.
+
+How the marker pose is built (`drone_mission/marker_tracker.py`): `solvePnP` (IPPE_SQUARE)
+gives the marker in the camera optical frame; the fixed mount (15 cm forward, 2 cm down) and
+the drone's attitude from MAVROS turn that into the local ENU frame; and because the marker is
+static, its ENU position and facing direction are low-pass filtered across frames. That
+cancels the camera tilting as the drone accelerates and carries the controller through dropped
+frames. The facing direction is only good to a few degrees at 4-6 m (tens of cm of apparent
+sideways offset), so the sideways correction fades in within 2 m.
+
+First runs, 2026-11-12 (headless sim):
+
+| Start | Search | Approach | Range during hold (mean / worst) | Lateral | Height | Bearing |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5.9 m, facing it | none | 12.6 s | 1.023 / 1.092 m | +0.005 / +0.066 m | 0.000 / +0.010 m | +0.1 / +1.2 deg |
+| 6.0 m, facing away | 133 deg | 11.7 s | 1.019 / 1.090 m | +0.012 / +0.088 m | 0.000 / -0.008 m | 0.0 / +1.9 deg |
+
+On the first run the drone's true position put the camera 0.99 m from the marker while the
+estimate said 1.00 m. The range sits at the top of its tolerance when the hold starts because
+the hold begins as soon as it's inside 1.10 m and the P controller closes the rest slowly.
+
 ## Frames
 
 MAVROS local frame is ENU: x = East, y = North, z = Up, metres from the arming point.
@@ -137,5 +188,6 @@ ArduPilot itself works in NED; MAVROS converts.
 
 1. ~~`waypoint_navigator` node~~ (done).
 2. ~~Forward camera on the Iris and an ArUco world~~ (done).
-3. `marker_approach` node: OpenCV ArUco pose + proportional control on yaw, height and range.
-4. 10-run experiment with logging; plot paths and per-waypoint error.
+3. ~~`marker_approach` node~~ (done).
+4. `mission` node: waypoints -> search -> approach -> hold -> land in one run.
+5. 10-run experiment with logging; plot paths and per-waypoint error.

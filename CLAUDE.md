@@ -82,6 +82,8 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
    Headless Gazebo needs `--headless-rendering` for the camera (sim_gazebo.sh passes it).
    The sim camera is an ideal pinhole; the real Pi Camera 3 Wide needs calibrating (and probably
    the fisheye model) before its solvePnP ranges can be trusted.
-3. `marker_approach` node: OpenCV ArUco + `solvePnP`, with proportional control on yaw, height
-   and range, sending body-frame velocity setpoints. Hold 1 m for 5 s, then land.
+3. ~~`marker_approach` node~~ done (see README). Detection/pose in `marker_tracker.py` (filtered
+   ENU estimate of the static marker); velocity setpoints via `FlightNode.send_velocity` on
+   `/mavros/setpoint_raw/local` (ENU, MAVROS converts). Next: a `mission` node chaining
+   waypoints -> search -> approach -> hold -> land.
 4. 10-run experiment: log the true pose from Gazebo, then plot the paths and a per-waypoint error table.

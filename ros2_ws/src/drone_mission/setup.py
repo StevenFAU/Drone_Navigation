@@ -23,6 +23,7 @@ setup(
         'console_scripts': [
             'hello_flight = drone_mission.hello_flight:main',
             'waypoint_navigator = drone_mission.waypoint_navigator:main',
+            'marker_approach = drone_mission.marker_approach:main',
         ],
     },
 )
