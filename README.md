@@ -26,7 +26,9 @@ With Claude Code on that machine, open this folder and ask it to "set up this pr
 
 ## Running the sim
 
-Easiest: one terminal tab runs all three programs; Ctrl-C there (or closing Gazebo) stops them all.
+Easiest: one terminal tab runs everything (Gazebo, ArduPilot SITL, MAVROS, camera bridge);
+Ctrl-C there (or closing Gazebo) stops them all. The default world is `sim/worlds/aruco_world.sdf`
+(see below); `WORLD=iris_runway.sdf scripts/start_sim.sh` gives the original ArduPilot one.
 
 ```bash
 scripts/start_sim.sh         # add --headless to skip the Gazebo window
@@ -41,9 +43,10 @@ Or run each piece in its own terminal (useful for debugging):
 scripts/sim_gazebo.sh        # 1. Gazebo with the Iris drone (add --headless to skip the window)
 scripts/sim_ardupilot.sh     # 2. ArduCopter SITL + MAVProxy console/map (--headless for no windows, -w to reset params)
 scripts/mavros.sh            # 3. MAVROS on tcp:5762
+scripts/camera_bridge.sh     # 4. forward camera -> ROS /camera/image, /camera/camera_info
 ```
 
-Then, in a fourth terminal:
+Then, in another terminal:
 
 ```bash
 source setup/env.sh
@@ -95,8 +98,35 @@ land, abort-to-LAND on errors); new mission nodes should subclass `FlightNode` t
 are much faster. If a run fails after arming, the node switches the drone to LAND.
 MAVProxy's map window fails to load ("map not ready"); the console works and the map isn't needed.
 
-Note: the default `iris_runway.sdf` drone (`iris_with_gimbal`) already has a gimbal camera
-publishing on a Gazebo topic; that's a starting point for the marker work.
+## ArUco world and forward camera
+
+`sim/worlds/aruco_world.sdf` is ArduPilot's runway world with two changes:
+
+- **Drone `iris_fwd_cam`** (`sim/models/iris_fwd_cam`): the ArduPilot Iris without the gimbal,
+  plus a fixed camera matching the T27's Pi Camera 3 Wide: 15 cm ahead of the IMU, 2 cm below,
+  looking along body x (forward). 1280x720 at 15 Hz, 102 deg horizontal FOV, ideal pinhole
+  (fx = fy = 518.4, cx = 640, cy = 360; no lens distortion). Starts at the origin facing North.
+- **Marker `aruco_marker`** (`sim/models/aruco_marker`): ArUco `DICT_4X4_50` id 0, 0.20 m
+  (black border included) on a 0.30 m white board, centre 1.5 m up a post, 6 m North of the
+  start and facing the drone. Move it with its `<pose>` in the world file.
+
+ROS topics (bridged by `scripts/camera_bridge.sh`): `/camera/image` (`sensor_msgs/Image`, rgb8)
+and `/camera/camera_info` (intrinsics for `solvePnP`). `solvePnP` gives the marker in the camera
+optical frame: x right, y down, z forward.
+
+```bash
+ros2 run rqt_image_view rqt_image_view /camera/image    # watch the camera
+python3 sim/tools/check_marker.py                       # grab a frame, detect, print solvePnP pose
+python3 sim/tools/make_marker.py --id 0                 # regenerate the marker texture
+```
+
+`check_marker.py` saves the annotated frame to `logs/camera_check.png`. Checked 2026-11-12:
+from the ground at 6 m it measured 5.91 m forward / 1.34 m up (geometry: ~5.84 / 1.33 m);
+hovering ~1.8 m away it detected the marker centred in the image. At 640x360 the marker was
+only ~9 px wide at 6 m and not detected, which is why the camera runs at 1280x720.
+
+For the real drone, print `sim/models/aruco_marker/materials/textures/marker.png` so the black
+square measures exactly 0.20 m, and leave a white margin around it.
 
 ## Frames
 
@@ -106,6 +136,6 @@ ArduPilot itself works in NED; MAVROS converts.
 ## Next steps
 
 1. ~~`waypoint_navigator` node~~ (done).
-2. Add a forward camera to the Iris model and an ArUco marker to a custom world in `sim/`.
+2. ~~Forward camera on the Iris and an ArUco world~~ (done).
 3. `marker_approach` node: OpenCV ArUco pose + proportional control on yaw, height and range.
 4. 10-run experiment with logging; plot paths and per-waypoint error.

@@ -63,7 +63,10 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
 - A uv/pyenv `python3` earlier on PATH than `/usr/bin/python3` makes the plugin's CMake fail with
   `No module named 'catkin_pkg'`; `02_build_sim.sh` now passes `-DPython3_EXECUTABLE=/usr/bin/python3`.
 - `start_sim.sh` puts each program in its own process group, so killing the script's group doesn't
-  stop them. A leftover sim makes the next one fail oddly (second Gazebo feeding the old SITL:
+  stop them. Stop it with `kill -TERM <start_sim pid>` (its trap cleans up all of them). SIGINT
+  only works from its own terminal: started in the background from a non-interactive shell
+  (`setsid ... &`), bash ignores SIGINT. Don't find the PID with `pgrep -f`/`awk` on a pattern
+  that is also in your own command line (it matched and killed my shell twice). A leftover sim makes the next one fail oddly (second Gazebo feeding the old SITL:
   "Gyro rate 70Hz", mag/GPS pre-arm errors, stuck at "waiting for mode GUIDED"). Before starting a
   sim, check `ps -eo pid,cmd | grep -E "[a]rducopter|[g]z-sim|[m]avros_node"` and kill by PID.
 - Frames: MAVROS local frame is ENU (x East, y North, z Up), metres from the EKF origin: where ArduPilot first got a fix, **not** the latest arming point. It
@@ -74,9 +77,11 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
 ## Next steps (project plan)
 
 1. ~~`waypoint_navigator` node~~ done (see README). Shared MAVROS code is in `flight_base.py`.
-2. Sim world in `sim/worlds` with an ArUco marker. Use a fixed forward camera on the Iris to
-   match the real drone (camera ~15 cm forward of the IMU, looking along body x).
-   The default `iris_with_gimbal` has a gimbal camera to start from.
+2. ~~ArUco world + fixed forward camera~~ done: `sim/worlds/aruco_world.sdf` (default world),
+   models in `sim/models`, camera on ROS as `/camera/image` + `/camera/camera_info` (see README).
+   Headless Gazebo needs `--headless-rendering` for the camera (sim_gazebo.sh passes it).
+   The sim camera is an ideal pinhole; the real Pi Camera 3 Wide needs calibrating (and probably
+   the fisheye model) before its solvePnP ranges can be trusted.
 3. `marker_approach` node: OpenCV ArUco + `solvePnP`, with proportional control on yaw, height
    and range, sending body-frame velocity setpoints. Hold 1 m for 5 s, then land.
 4. 10-run experiment: log the true pose from Gazebo, then plot the paths and a per-waypoint error table.
