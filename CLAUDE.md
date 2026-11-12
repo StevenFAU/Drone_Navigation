@@ -20,6 +20,8 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
 ## Setting up a new machine
 
 1. Clone `https://github.com/StevenFAU/Drone_Navigation` (any path works, e.g. `~/Projects/Robotics/Drone_Navigation`).
+   If the repo is moved after building, delete `ros2_ws/{build,install,log}` and rebuild with
+   `colcon build --symlink-install` (the install has absolute paths).
 2. `setup/01_install_system.sh` needs sudo. Start it in a **Terminal-panel tab** (run_in_terminal),
    not Bash, so the user can type their password. Tell the user right away: sudo's password prompt
    times out after ~5 minutes. The apt step is long, and sudo may ask again later; watch the tab.
@@ -27,7 +29,10 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
    - If sudo fails with `The "no new privileges" flag is set`, the app's terminal is sandboxed.
      Open a normal Ubuntu terminal window instead with
      `setsid ptyxis --new-window -- bash -c 'cd <repo> && setup/01_install_system.sh 2>&1 | tee logs/01_install.log; exec bash' &`.
-     Ptyxis is started through D-Bus, so the window doesn't inherit the flag. Then tell the user
+     Ptyxis is started through D-Bus, so the window doesn't inherit the flag, **but only if Ptyxis
+     is already running**; otherwise it starts as a child of the sandboxed shell and still has the
+     flag (check `grep NoNewPrivs /proc/<pid>/status`). Reliable on every machine:
+     `systemd-run --user --collect -- ptyxis --new-window -- bash -c '<same command>'`. Then tell the user
      to type their password in that window, and read `logs/01_install.log` to follow progress.
 3. `setup/02_build_sim.sh` needs no sudo. Run it in the background with output to
    `logs/02_build.log`. It takes ~10–20 min. `JOBS=4` by default; lower it if RAM is tight.
@@ -55,12 +60,20 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
   process runs in its own process group and can survive its terminal tab closing.
 - ArduPilot's install script tried to compile wxPython from source on 26.04 and stalled. The
   install script now uses Ubuntu's `python3-wxgtk4.0` and `SKIP_AP_GRAPHIC_ENV=1` instead.
-- Frames: MAVROS local frame is ENU (x East, y North, z Up), metres from the arming point.
+- A uv/pyenv `python3` earlier on PATH than `/usr/bin/python3` makes the plugin's CMake fail with
+  `No module named 'catkin_pkg'`; `02_build_sim.sh` now passes `-DPython3_EXECUTABLE=/usr/bin/python3`.
+- `start_sim.sh` puts each program in its own process group, so killing the script's group doesn't
+  stop them. A leftover sim makes the next one fail oddly (second Gazebo feeding the old SITL:
+  "Gyro rate 70Hz", mag/GPS pre-arm errors, stuck at "waiting for mode GUIDED"). Before starting a
+  sim, check `ps -eo pid,cmd | grep -E "[a]rducopter|[g]z-sim|[m]avros_node"` and kill by PID.
+- Frames: MAVROS local frame is ENU (x East, y North, z Up), metres from the EKF origin: where ArduPilot first got a fix, **not** the latest arming point. It
+  persists across flights in one SITL session, so mission nodes must record the takeoff position
+  and offset by it (`waypoint_navigator` does).
   ArduPilot GUIDED velocity commands time out after ~3 s, so stream setpoints at ~10 Hz.
 
 ## Next steps (project plan)
 
-1. `waypoint_navigator` node: an ordered list of (x, y, z) waypoints, an arrival tolerance, advance on arrival.
+1. ~~`waypoint_navigator` node~~ done (see README). Shared MAVROS code is in `flight_base.py`.
 2. Sim world in `sim/worlds` with an ArUco marker. Use a fixed forward camera on the Iris to
    match the real drone (camera ~15 cm forward of the IMU, looking along body x).
    The default `iris_with_gimbal` has a gimbal camera to start from.

@@ -54,7 +54,40 @@ The drone should switch to GUIDED, arm (after ~30 s of SITL pre-arm checks), tak
 to 2 m, fly 3 m East, hold, and land. First verified 2026-11-12: reached the target with 0.27 m
 error and landed at x = 3.0 m. Logs from that run are in `logs/test_*.log`.
 
-Run the scripts from this folder (`cd ~/Projects/Robotics/drone_mission` first): they use relative paths.
+Run the scripts from this folder (`cd ~/Projects/Robotics/Drone_Navigation` first): they use relative paths.
+
+## Waypoint mission
+
+With the sim running (`READY`), in a second tab:
+
+```bash
+source setup/env.sh
+ros2 run drone_mission waypoint_navigator                       # default: 4 m square at 2-3 m
+ros2 run drone_mission waypoint_navigator --ros-args --params-file ros2_ws/src/drone_mission/config/waypoints.yaml
+ros2 run drone_mission waypoint_navigator --ros-args -p waypoints:="[5.0,0.0,2.0, 5.0,5.0,3.0]"
+```
+
+It arms, takes off, turns to face each waypoint, flies there, holds, and after the last one
+lands. Waypoints are a flat `[x1, y1, z1, x2, y2, z2, ...]` list in metres from the takeoff
+point (x = East, y = North, z = height). Edit `config/waypoints.yaml` for your own mission.
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `waypoints` | 4 m square | flat list of x, y, z triples |
+| `tolerance` | 0.3 | m (3D) that counts as arrived |
+| `hold_time` | 2.0 | s to hover at each waypoint |
+| `takeoff_altitude` | 2.0 | m |
+| `face_travel` | true | yaw toward the next waypoint before each leg |
+| `timeout_scale` | 4.0 | multiplies waits; 1.0 is fine headless |
+| `log_dir` | `logs/` | where the CSVs go |
+
+Each run writes `logs/waypoints_<time>_pose.csv` (10 Hz pose relative to takeoff, current
+waypoint, mode) and `logs/waypoints_<time>_summary.csv` (per-waypoint leg time, error on
+arrival and after the hold). First run 2026-11-12: all four waypoints of the square reached
+in ~2.7 s each, arrival error 0.22-0.27 m, 0.01-0.03 m after the hold.
+
+Both nodes share `drone_mission/flight_base.py` (connect, GUIDED, arm, takeoff, setpoints,
+land, abort-to-LAND on errors); new mission nodes should subclass `FlightNode` too.
 
 **Speed on this laptop:** with the Gazebo window open, the sim runs at ~0.3x real time
 (check with `gz topic -e -n 1 -t /stats | grep real_time`), so everything looks slow-motion.
@@ -72,7 +105,7 @@ ArduPilot itself works in NED; MAVROS converts.
 
 ## Next steps
 
-1. `waypoint_navigator` node: fly a list of (x, y, z) waypoints with an arrival tolerance.
+1. ~~`waypoint_navigator` node~~ (done).
 2. Add a forward camera to the Iris model and an ArUco marker to a custom world in `sim/`.
 3. `marker_approach` node: OpenCV ArUco pose + proportional control on yaw, height and range.
 4. 10-run experiment with logging; plot paths and per-waypoint error.

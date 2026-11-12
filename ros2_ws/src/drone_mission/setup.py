@@ -1,3 +1,5 @@
+from glob import glob
+
 from setuptools import setup
 
 package_name = 'drone_mission'
@@ -9,6 +11,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/config', glob('config/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -19,6 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'hello_flight = drone_mission.hello_flight:main',
+            'waypoint_navigator = drone_mission.waypoint_navigator:main',
         ],
     },
 )

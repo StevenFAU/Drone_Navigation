@@ -17,7 +17,8 @@ source /opt/ros/lyrical/setup.bash   # Gazebo Jetty libraries come from the ROS 
 export GZ_VERSION=jetty
 cd "$HOME/ardupilot_gazebo"
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
+# Point CMake at the system Python (ROS packages live there); a uv/pyenv python3 on PATH breaks ament.
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DPython3_EXECUTABLE=/usr/bin/python3
 make -j"$JOBS"
 
 echo "== Building ROS 2 workspace ($PROJ/ros2_ws) =="

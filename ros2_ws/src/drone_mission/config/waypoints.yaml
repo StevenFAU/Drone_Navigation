@@ -1,0 +1,17 @@
+# Waypoint mission for waypoint_navigator.
+#   ros2 run drone_mission waypoint_navigator --ros-args --params-file ros2_ws/src/drone_mission/config/waypoints.yaml
+# Coordinates: ENU metres from the arming point (x = East, y = North, z = Up).
+waypoint_navigator:
+  ros__parameters:
+    # Flat list of x, y, z triples (one waypoint per line).
+    waypoints: [
+      4.0, 0.0, 2.0,
+      4.0, 4.0, 3.0,
+      0.0, 4.0, 3.0,
+      0.0, 0.0, 2.0,
+    ]
+    tolerance: 0.3        # m, 3D distance that counts as "arrived"
+    hold_time: 2.0        # s to hover at each waypoint
+    takeoff_altitude: 2.0 # m
+    face_travel: true     # yaw toward the next waypoint before each leg
+    timeout_scale: 4.0    # use 1.0 for headless runs
