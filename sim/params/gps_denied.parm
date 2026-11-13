@@ -19,3 +19,10 @@ EK3_SRC1_POSZ 1
 EK3_SRC1_YAW 1
 # Same arming checks as ArduPilot's own optical-flow SITL test (skips the GPS check).
 ARMING_CHECK 786390
+# The T27 keeps its indoor flow sources in set 2 (set 1 = GPS for outdoors) and the indoor
+# mission selects set 2, so give the sim the same set 2.
+EK3_SRC2_POSXY 0
+EK3_SRC2_VELXY 5
+EK3_SRC2_VELZ 0
+EK3_SRC2_POSZ 1
+EK3_SRC2_YAW 1

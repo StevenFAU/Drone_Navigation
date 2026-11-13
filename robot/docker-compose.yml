@@ -1,0 +1,60 @@
+# ROS 2 stack on the T27's Pi 5. Run from ~/Drone_Navigation/robot on the Pi:
+#   docker compose up -d                 # MAVROS + camera (they also start at boot)
+#   docker compose run --rm mission      # fly the indoor mission (see docs/real_drone.md first!)
+#   docker compose logs -f mavros        # watch
+#   docker compose down                  # stop (they stay stopped across reboots until `up`)
+# Only one program can own the flight-controller serial port and the camera, so the T27 team's
+# ROS 1 containers must be stopped while this runs (robot/install.sh does that).
+x-ros: &ros
+  image: drone_nav:jazzy
+  network_mode: host
+  ipc: host                  # DDS shared memory between containers (camera images)
+  environment:
+    - ROS_DOMAIN_ID=27
+  volumes:
+    - ./config:/config
+    - ../ros2_ws/src/drone_mission:/ws/src/drone_mission   # edit nodes on the Pi without a rebuild
+    - ../logs:/logs
+
+services:
+  mavros:
+    <<: *ros
+    build:
+      context: ..
+      dockerfile: robot/Dockerfile
+    container_name: dn_mavros
+    devices:
+      - /dev/ttyAMA10:/dev/ttyAMA10
+    volumes:
+      - ./config:/config
+      - ../logs:/logs
+      - ./config/mavros_plugins.yaml:/opt/ros/jazzy/share/mavros/launch/apm_pluginlists.yaml:ro
+    command: ros2 launch mavros apm.launch fcu_url:=/dev/ttyAMA10:921600
+    restart: unless-stopped
+
+  camera:
+    <<: *ros
+    container_name: dn_camera
+    privileged: true          # libcamera needs /dev/media*, /dev/video*, /dev/dma_heap
+    volumes:
+      - ./config:/config
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+    # 1280x720 like the sim; ~15 fps (FrameDurationLimits in microseconds) to spare the Pi's CPU.
+    # Focus locked at 2 m (LensPosition = 1/distance): autofocus would change the calibration.
+    command: >
+      ros2 run camera_ros camera_node --ros-args -r __node:=camera
+      -p width:=1280 -p height:=720 -p format:=BGR888
+      -p "FrameDurationLimits:=[66666,66666]"
+      -p AfMode:=0 -p LensPosition:=0.5
+      -p camera_info_url:=file:///config/camera.yaml
+    restart: unless-stopped
+
+  mission:
+    <<: *ros
+    container_name: dn_mission
+    profiles: ["fly"]          # never started by `up`; only by `docker compose run --rm mission`
+    command: >
+      ros2 run drone_mission mission --ros-args
+      --params-file /ws/src/drone_mission/config/mission_indoor.yaml
+      -p log_dir:=/logs

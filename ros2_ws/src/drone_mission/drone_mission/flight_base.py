@@ -4,6 +4,8 @@ Frames: MAVROS's local frame is ENU (x = East, y = North, z = Up), metres from t
 (where ArduPilot first got a position fix, which stays put across flights in one session).
 Yaw is ENU too: 0 = facing East, +pi/2 = North. Mission nodes work in a "mission frame": the
 same axes, with the origin at the spot the drone armed (`self.origin`, set by connect_and_arm).
+With heading_frame:=true the mission frame is instead turned to the drone's heading at arming
+(x = forward, y = left), which is easier to lay out indoors than East/North.
 
 Pattern: a node subclasses FlightNode and implements mission(); run_node() spins ROS callbacks
 in a background thread while mission() runs as plain blocking code, switches to LAND if the
@@ -25,7 +27,7 @@ from datetime import datetime
 import rclpy
 from geometry_msgs.msg import PoseStamped
 from mavros_msgs.msg import PositionTarget, State
-from mavros_msgs.srv import CommandBool, CommandTOL, SetMode, StreamRate
+from mavros_msgs.srv import CommandBool, CommandLong, CommandTOL, SetMode, StreamRate
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -55,6 +57,10 @@ class FlightNode(Node):
         # Multiplies every wait. Gazebo with its GUI open can run at ~0.3x real time
         # on a laptop, so give it slack; set to 1.0 for headless runs.
         self.timeout_scale = self.param('timeout_scale', 4.0)
+        # EKF source set to select before arming (0 = leave it to the RC switch). On the T27,
+        # set 1 = GPS (outdoors), set 2 = optical flow + rangefinder (indoors).
+        self.ekf_source_set = int(self.param('ekf_source_set', 0))
+        self.heading_frame = bool(self.param('heading_frame', False))
         log_dir = self.param('log_dir', '')
         self.log_dir = log_dir or os.path.join(os.environ.get('DRONE_MISSION_ROOT', '.'), 'logs')
 
@@ -63,6 +69,7 @@ class FlightNode(Node):
         self.true_pose = None     # geometry_msgs/Pose from Gazebo (world frame), sim only
         self.true_marker = None   # same, for the marker model
         self.origin = (0.0, 0.0, 0.0)
+        self.origin_yaw = 0.0     # mission frame rotation (heading_frame)
         self.true_origin = None
         self.phase = 'init'
         self.expect_guided = False   # True while we are flying the drone in GUIDED
@@ -89,6 +96,7 @@ class FlightNode(Node):
         self.arm_cli = self.create_client(CommandBool, '/mavros/cmd/arming')
         self.takeoff_cli = self.create_client(CommandTOL, '/mavros/cmd/takeoff')
         self.stream_cli = self.create_client(StreamRate, '/mavros/set_stream_rate')
+        self.command_cli = self.create_client(CommandLong, '/mavros/cmd/command')
 
     def param(self, name, default):
         """Declare a parameter once (several mission pieces may ask for the same one)."""
@@ -118,11 +126,14 @@ class FlightNode(Node):
     def to_local(self, x, y, z):
         """Mission frame -> MAVROS local frame."""
         ox, oy, oz = self.origin
-        return x + ox, y + oy, z + oz
+        c, s = math.cos(self.origin_yaw), math.sin(self.origin_yaw)
+        return c * x - s * y + ox, s * x + c * y + oy, z + oz
 
     def to_mission(self, x, y, z):
         ox, oy, oz = self.origin
-        return x - ox, y - oy, z - oz
+        dx, dy = x - ox, y - oy
+        c, s = math.cos(self.origin_yaw), math.sin(self.origin_yaw)
+        return c * dx + s * dy, -s * dx + c * dy, z - oz
 
     def rotation(self):
         """3x3 rotation matrix body (FLU) -> local ENU from the current attitude."""
@@ -260,6 +271,13 @@ class FlightNode(Node):
         self.wait_for(lambda: self.state.connected, 60.0, 'MAVROS connection to ArduPilot')
         # Ask ArduPilot to stream all telemetry at 10 Hz on this link.
         self.call(self.stream_cli, StreamRate.Request(stream_id=0, message_rate=10, on_off=True))
+        if self.ekf_source_set:
+            # MAV_CMD_SET_EKF_SOURCE_SET (42007). Not saved: a reboot or the RC switch changes it.
+            res = self.call(self.command_cli, CommandLong.Request(command=42007,
+                                                                  param1=float(self.ekf_source_set)))
+            if not res.success:
+                raise MissionError(f'flight controller refused EKF source set {self.ekf_source_set}')
+            self.get_logger().info(f'EKF source set {self.ekf_source_set} selected')
         self.wait_for(lambda: self.pose is not None, 30.0, 'local position')
         self.set_mode('GUIDED')
         self.expect_guided = True
@@ -273,6 +291,7 @@ class FlightNode(Node):
             self.call(self.arm_cli, CommandBool.Request(value=True))
             time.sleep(2.0)
         self.origin = self.position
+        self.origin_yaw = self.yaw if self.heading_frame else 0.0
         if self.true_pose is not None:
             t = self.true_pose.position
             self.true_origin = (t.x, t.y, t.z)

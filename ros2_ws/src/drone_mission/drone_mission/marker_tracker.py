@@ -38,9 +38,7 @@ class MarkerTracker:
         s = marker_size / 2.0
         # Corner order returned by the detector: top-left, top-right, bottom-right, bottom-left.
         self.obj_pts = np.array([[-s, s, 0], [s, s, 0], [s, -s, 0], [-s, -s, 0]], np.float32)
-        self.detector = cv2.aruco.ArucoDetector(
-            cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary)),
-            cv2.aruco.DetectorParameters())
+        self.detector = make_detector(dictionary)
 
         self.K = None
         self.D = None
@@ -148,6 +146,25 @@ class MarkerTracker:
                 'height': d[2], 'bearing': bearing}
 
 
+def make_detector(dictionary='DICT_4X4_50'):
+    """ArUco detector with a detectMarkers(gray) method on any OpenCV 4.x. OpenCV >= 4.7 has
+    cv2.aruco.ArucoDetector; the 4.6 in Ubuntu 24.04 (the drone's ROS 2 Jazzy image) only has the
+    old function API."""
+    aruco = cv2.aruco
+    if hasattr(aruco, 'ArucoDetector'):
+        return aruco.ArucoDetector(aruco.getPredefinedDictionary(getattr(aruco, dictionary)),
+                                   aruco.DetectorParameters())
+
+    class _Legacy:
+        def __init__(self):
+            self.dictionary = aruco.Dictionary_get(getattr(aruco, dictionary))
+            self.params = aruco.DetectorParameters_create()
+
+        def detectMarkers(self, gray):
+            return aruco.detectMarkers(gray, self.dictionary, parameters=self.params)
+    return _Legacy()
+
+
 def to_gray(msg):
     """sensor_msgs/Image -> grayscale numpy array (no cv_bridge needed)."""
     enc = msg.encoding.lower()
@@ -155,6 +172,9 @@ def to_gray(msg):
     if enc in ('rgb8', 'bgr8'):
         img = buf.reshape(msg.height, msg.step // 3, 3)[:, :msg.width]
         return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY if enc == 'rgb8' else cv2.COLOR_BGR2GRAY)
+    if enc in ('rgba8', 'bgra8'):    # the Pi camera's default XRGB8888 arrives as one of these
+        img = buf.reshape(msg.height, msg.step // 4, 4)[:, :msg.width]
+        return cv2.cvtColor(img, cv2.COLOR_RGBA2GRAY if enc == 'rgba8' else cv2.COLOR_BGRA2GRAY)
     if enc in ('mono8', '8uc1'):
         return buf.reshape(msg.height, msg.step)[:, :msg.width]
     return None

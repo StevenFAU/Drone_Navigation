@@ -23,8 +23,10 @@ class HelloFlight(FlightNode):
         self.connect_and_arm()
         self.takeoff(self.altitude)
 
-        x0, y0, _ = self.position
-        tx, ty, tz = x0 + self.target_x, y0 + self.target_y, self.altitude
+        # target_x/target_y from here, in the mission frame (East/North, or forward/left with
+        # heading_frame); altitude above the takeoff spot
+        mx, my, _ = self.to_mission(*self.position)
+        tx, ty, tz = self.to_local(mx + self.target_x, my + self.target_y, self.altitude)
         log.info(f'flying to ({tx:.1f}, {ty:.1f}, {tz:.1f})')
         deadline = time.time() + 60.0 * self.timeout_scale
         while self.distance_to(tx, ty, tz) > self.tolerance:

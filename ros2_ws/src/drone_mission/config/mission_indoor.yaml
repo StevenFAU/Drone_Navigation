@@ -1,0 +1,56 @@
+# Indoor mission for the real T27 (optical flow, no GPS), sized for a lab.
+# On the Pi:  cd ~/Drone_Navigation/robot && docker compose run --rm mission
+# In the sim: scripts/start_sim.sh --gps-denied, then
+#   ros2 run drone_mission mission --ros-args --params-file ros2_ws/src/drone_mission/config/mission_indoor.yaml \
+#     -p image_topic:=/camera/image
+#
+# Layout (heading_frame): x = metres FORWARD of the way the drone faces when it arms, y = metres
+# to its LEFT, z = height. Put the marker ~3-4 m straight ahead at ~1.2 m centre height, facing the
+# drone. Needs ~2.5 m x 2.5 m of clear floor around the takeoff spot plus the path to the marker.
+#
+#        marker (x ~3.5)
+#           |
+#   (1.5,1.5) ---- (1.5,0)
+#       |              |
+#   (0,1.5)  ----  takeoff (0,0)   drone faces up the page
+/**:          # any node: mission, marker_approach, waypoint_navigator, hello_flight
+  ros__parameters:
+    heading_frame: true      # waypoints relative to the drone's heading at arming
+    ekf_source_set: 2        # T27 source set 2 = optical flow + rangefinder
+    takeoff_altitude: 1.2    # m; the rangefinder (height source) reads up to 2.0 m
+    waypoints: [
+      1.5, 0.0, 1.2,
+      1.5, 1.5, 1.4,
+      0.0, 1.5, 1.2,
+      0.0, 0.0, 1.2,
+    ]
+    tolerance: 0.3           # m
+    waypoint_hold: 2.0       # s
+    settle_tolerance: 0.15   # m: flow drifts more than the sim
+    settle_timeout: 8.0
+    min_expected_speed: 0.2  # m/s, for leg timeouts (WPNAV_SPEED is 1 m/s on the drone)
+
+    marker_id: 0
+    marker_size: 0.20        # m, measure the PRINTED marker's black square
+    target_range: 1.0
+    hold_time: 5.0
+    range_tol: 0.10
+    lateral_tol: 0.15
+    height_tol: 0.10
+    bearing_tol_deg: 5.0
+    # Slow for first flights
+    max_speed: 0.3           # m/s
+    max_climb: 0.2           # m/s
+    max_yaw_rate_deg: 20.0
+    search_rate_deg: 15.0
+    approach_timeout: 150.0
+    lost_timeout: 8.0
+
+    # Real camera (camera_ros on the Pi). MEASURE camera_offset on the drone: metres
+    # forward, left, up from the flight controller to the camera lens.
+    image_topic: /camera/image_raw
+    camera_info_topic: /camera/camera_info
+    camera_offset: [0.15, 0.0, -0.02]
+    image_reliable: true
+
+    timeout_scale: 1.5

@@ -1,0 +1,19 @@
+# MAVROS 2 loads ~50 plugins by default and on the Pi 5 that kept one CPU core at 100% (heat,
+# throttling). Load only what the mission nodes and monitoring use: deny everything, allow these.
+/**:
+  ros__parameters:
+    plugin_denylist:
+      - '*'
+    plugin_allowlist:
+      - sys_status          # /mavros/state, set_mode, set_stream_rate, statustext, battery
+      - sys_time
+      - command             # arming, takeoff, MAV_CMD_SET_EKF_SOURCE_SET
+      - param
+      - imu
+      - local_position      # /mavros/local_position/pose
+      - global_position
+      - home_position
+      - setpoint_position   # waypoints
+      - setpoint_raw        # marker approach velocity/position targets
+      - rc_io               # watch the pilot's switches
+      - distance_sensor     # rangefinder

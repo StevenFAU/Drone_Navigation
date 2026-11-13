@@ -4,76 +4,115 @@ The mission nodes talk only to MAVROS and a camera topic, so the same code runs 
 Raspberry Pi 5. What changes is everything around it: how the drone knows where it is, the
 camera driver and calibration, and safety. This is the bring-up plan, smallest risk first.
 
-## What the T27 has (from its repo, `ahancock516/T27-GPS-Denied-Drone`)
+## What the T27 has (surveyed on the drone, 2026-11-13)
 
-| Item | T27 | Matters because |
+| Item | T27 | Notes |
 | --- | --- | --- |
-| Flight controller | Aero Selfie H743, **ArduCopter 4.6.3** | same version as the sim |
-| Companion | Raspberry Pi 5 (8 GB) | runs MAVROS + these nodes |
-| Camera | Pi Camera 3 Wide, forward | marker detection; **needs calibrating** (their `camera.yaml` is a placeholder: fx = 600, zero distortion) |
-| Flow + range | Mico Air MTF-02P over MAVLink (`FLOW_TYPE 5`, `RNGFND1_TYPE 10`) | the only indoor position source |
-| GPS / compass | HGLRC M100 Pro on a mast | outdoors / ground truth |
-| EKF sources | set 1: GPS position + velocity, baro height, compass yaw. Set 2: **flow velocity only** | GUIDED needs a position estimate |
-| VINS-Fusion | runs on the Pi (ROS 1 Noetic, Docker), **not fed to ArduPilot** (`VISO_TYPE 0`) | was evaluated offline only |
-| RC | Radiomaster Pocket, ELRS; mode switch on channel 7: LOITER / ALT_HOLD / STABILIZE | pilot takeover |
+| Flight controller | MicoAir743 (reports itself so; the T27 docs say Aero Selfie H743), ArduCopter 4.6.3 | same version as the sim; to the Pi on `/dev/ttyAMA10` at 921600 |
+| Companion | Raspberry Pi 5 (8 GB), Pi OS (Debian 12) | ran at 77-85 °C and throttled with no fan; a fan was fitted 2026-11-13. Watch `vcgencmd measure_temp` / `get_throttled` |
+| Camera | Pi Camera 3 Wide, forward | the T27 ran it at 640x480 with a placeholder calibration (fx 600, no distortion) |
+| Flow + range | Mico Air MTF-02P (`FLOW_TYPE 5`, `RNGFND1_TYPE 10`) | rangefinder limit `RNGFND1_MAX_CM 200`: **stay under ~1.8 m indoors** |
+| GPS / compass | HGLRC M100 Pro on a mast | 0 satellites indoors |
+| EKF sources | set 1: GPS. Set 2: flow velocity + rangefinder height. Set 3: same as set 2 | chosen by the **RC channel 6 switch** (`RC6_OPTION 90`), or by the mission (`ekf_source_set`) |
+| RC | Radiomaster Pocket, ELRS. Ch 5 = arm switch, ch 6 = EKF source set, ch 7 = flight mode | mode slots: LOITER / ALT_HOLD / STABILIZE |
+| Battery | 4S, 3300 mAh | low 13.97 V -> LAND, critical 13.71 V |
 
-## Position estimate: decide indoors vs outdoors
+With source set 2 selected on the bench, the EKF gives a local position at 50 Hz (checked;
+pre-arm then only complains that the radio is off). With set 1 indoors there is no position
+at all, so GUIDED can't work: the indoor config selects set 2 itself.
 
-- **Outdoors with GPS**: use EKF source set 1 as configured. The sim's default mode matches this.
-- **Indoors (GPS-denied)**: the MTF-02P gives velocity (flow) and height (rangefinder); the
-  EKF dead-reckons position from flow. Set source set 1 (or switch to set 2 in flight) to
-  `EK3_SRC1_POSXY 0, EK3_SRC1_VELXY 5, EK3_SRC1_VELZ 0, EK3_SRC1_POSZ 1` (or `2` to use the
-  rangefinder for height), plus a rangefinder-friendly floor (textured, not glossy) and good
-  light. `scripts/start_sim.sh --gps-denied` simulates exactly this; see the README for how the
-  mission performs in it. The marker approach doesn't depend on drift (it is relative to the
-  marker); waypoints do.
-- VINS-Fusion could later replace flow (`VISO_TYPE 1`, MAVROS `vision_pose`), but it is ROS 1
-  and needs a ROS 1 to ROS 2 bridge or a port. Not needed for this project.
+## Flight-controller changes made for this project
 
-## Software on the Pi
+All 1275 original parameters are in `robot/backup/t27_params_original.parm` (and the result in
+`t27_params_after.parm`). To undo, load the original file in Mission Planner / QGroundControl.
 
-- ROS 2 Lyrical needs Ubuntu 26.04. On the Pi 5, either install Ubuntu 24.04 + **ROS 2 Jazzy**,
-  or run Jazzy in Docker (the T27 already uses Docker). The nodes are plain `rclpy` + MAVROS +
-  OpenCV and need no changes for Jazzy.
-- MAVROS to the flight controller over the TELEM serial port, e.g.
-  `ros2 launch mavros apm.launch fcu_url:=/dev/ttyAMA0:921600` (match `SERIALn_BAUD`).
-- Camera: `camera_ros` (libcamera) publishes `/camera/image_raw` and `/camera/camera_info`.
-  Run it at **1280x720** (same as the sim and the calibration), then pass the topics:
-  `-p image_topic:=/camera/image_raw -p camera_info_topic:=/camera/camera_info`.
-  The tracker subscribes with *reliable* QoS (big frames over best-effort lost ~30% in the sim).
-  If `ros2 topic info -v /camera/image_raw` shows the driver publishes best-effort only, add
-  `-p image_reliable:=false`, otherwise no frames arrive.
-- Measure where the camera sits relative to the flight controller (forward, left, up in
-  metres) and pass `-p camera_offset:="[0.15, 0.0, -0.02]"` with your numbers.
-- Calibrate the camera with `tools/calibrate_camera.py` (instructions at the top of the file)
-  and give `camera_ros` the YAML it writes.
+| Parameter | Was | Now | Why |
+| --- | --- | --- | --- |
+| `EK3_SRC3_*` | all 0 (no sources) | same as set 2 | an RC6 switch position with no position, velocity or height source is a crash |
+| `FLTMODE1`, `FLTMODE2` | 1 (ACRO) | 5 (LOITER) | match the T27 docs; ACRO is a poor takeover mode |
+| `FS_THR_ENABLE` | 0 | 3 (LAND) | RC link loss did nothing |
+| `FS_GCS_ENABLE` | 0 | 5 (LAND) | if the Pi/MAVROS dies mid-mission, land. `FS_OPTIONS 16` (already set) lets a pilot flying manually continue |
+| `FENCE_ALT_MAX` | 30.5 m | 2.5 m | indoor ceiling; **raise it before flying outdoors** |
+| `WPNAV_SPEED` / `_UP` / `_DN` | 1000 / 250 / 150 cm/s | 100 / 100 / 75 | slow first autonomous flights |
 
-## Safety setup (before any autonomous flight)
+## Software on the Pi (ROS 2 Jazzy in Docker)
 
-- **Pilot takeover**: keep the RC on and a pilot on the mode switch. Flipping it to LOITER or
-  ALT_HOLD takes control back; the nodes notice the mode change and stop sending anything.
-- Geofence: `FENCE_ENABLE 1`, `FENCE_TYPE 7`, `FENCE_RADIUS` and `FENCE_ALT_MAX` a little larger
-  than the mission, `FENCE_ACTION 1` (RTL) or `2` (LAND indoors).
-- Slow everything down for the first flights: `WPNAV_SPEED 100` (cm/s), and the node
-  parameters `max_speed:=0.3`, `max_climb:=0.2`.
-- Battery failsafe (`BATT_FS_LOW_ACT`), RC failsafe (`FS_THR_ENABLE`), and a netted or
-  tethered area with nobody in front of the drone.
+Pi OS has no ROS 2 packages, so everything runs in one Ubuntu 24.04 + Jazzy image
+(`robot/Dockerfile`): MAVROS 2, `camera_ros` built on Raspberry Pi's libcamera fork (needed for
+the Pi 5), and the `drone_mission` package. `robot/docker-compose.yml` runs:
+
+- `mavros`: `/dev/ttyAMA10:921600` (starts at boot). Only the 12 plugins the nodes use are loaded
+  (`robot/config/mavros_plugins.yaml`); with all ~50 it kept a CPU core at 100%.
+- `camera`: Pi Camera 3 Wide (IMX708) at 1280x720, 15 fps, `rgb8`, on `/camera/image_raw` +
+  `/camera/camera_info`; focus locked at 2 m. Calibration from `robot/config/camera.yaml`
+  (**currently a nominal placeholder**; see stage 0) (starts at boot). Checked: the tracker gets
+  all 15 frames/s and spends 15 ms per frame.
+- `mission`: only on demand: `docker compose run --rm mission` runs the mission with
+  `config/mission_indoor.yaml`, logging to `~/Drone_Navigation/logs/`
+
+The containers use **ROS domain 27**, so they never mix with a sim on the laptop (domain 0).
+The T27 team's ROS 1 containers (roscore, mavros, camera_mono, vinsfusion) are stopped, not
+deleted: `robot/install.sh --revert` brings them back (only one stack can own the serial port
+and the camera).
+
+### Connecting the laptop
+
+The laptop has one Wi-Fi radio. Keep it on RoboNet for internet and plug an Ethernet cable
+into the Pi, then:
+
+```bash
+nmcli con up drone-link       # laptop profile: shares the laptop's internet with the Pi
+ssh group7@10.43.0.42         # key login is set up
+```
+
+The Pi gets 10.43.0.42 over the cable (the laptop's DHCP keeps it). `raspberrypi.local` also
+works but sometimes resolves to the Pi's fixed 192.168.2.5, which the laptop can't reach. Without the cable,
+join the drone's own Wi-Fi `raspberrypi` (Pi at 10.42.0.1), losing internet on the laptop.
+
+```bash
+scripts/drone_sync.sh                       # copy code/config changes to the Pi
+source scripts/drone_env.sh                 # this terminal now sees the drone's ROS 2 topics
+ros2 topic echo /mavros/state --once
+ros2 run rqt_image_view rqt_image_view /camera/image_raw
+```
+
+Node and config changes need only a sync (the containers mount the package). Changes to
+`robot/Dockerfile` need `ssh` + `cd ~/Drone_Navigation/robot && ./install.sh`.
+
+## Indoor mission (`config/mission_indoor.yaml`)
+
+- `heading_frame: true`: waypoints are metres **forward / left** of the way the drone faces
+  when it arms (not East/North). Point the drone along the room.
+- `ekf_source_set: 2`: selects flow + rangefinder before arming.
+- 1.5 m square at 1.2-1.4 m, then search, approach to 1.0 m from the marker, hold 5 s, land.
+  Marker ~3-4 m straight ahead of the takeoff spot, centre ~1.2 m high, facing the drone.
+- Slow: 0.3 m/s approach, 0.2 m/s climb, 15 °/s search.
+- Tested in `start_sim.sh --gps-denied` (see the README).
+
+## Safety (before any autonomous flight)
+
+- **Pilot on the RC** the whole time, mode switch within reach. Flipping to LOITER or ALT_HOLD
+  takes over; the nodes notice and stop sending anything (they never fight the pilot).
+- Check on the radio which switch positions give LOITER / ALT_HOLD / STABILIZE (ch 7) and
+  which EKF source set (ch 6: indoors = set 2 or 3, never 1).
+- Netted/clear area, nobody in front of the drone, props off for every bench step.
+- Fit the fan before long sessions.
 
 ## Test stages (each one must pass before the next)
 
 | Stage | What | Pass when |
 | --- | --- | --- |
-| 0. Bench, props off | MAVROS connects; `/mavros/state` shows the mode; `camera_ros` runs at 1280x720; calibrate; `tools/calibrate_camera.py --test` on photos of the printed marker at 1, 2, 3 m | range within ~3 cm at 1 m and ~5% at 3 m |
-| 1. Manual hover | Pilot flies LOITER (indoors: with the flow source set); watch `/mavros/local_position/pose` while hovering 60 s | drift under ~0.5 m, no EKF warnings |
-| 2. First GUIDED | `ros2 run drone_mission hello_flight --ros-args -p altitude:=1.0 -p target_x:=1.0` | takes off, moves 1 m, lands; pilot takeover tested once |
-| 3. Marker only | Marker on a stand at 1.5 m height, drone 3 m in front: `marker_approach` with `target_range:=1.5`, then `1.0` | holds 5 s, lands |
-| 4. Waypoints | A 1.5 m square with `waypoint_navigator` | each waypoint within ~0.3 m (eyeball / tape marks) |
-| 5. Full mission | `mission` with waypoints sized to the room | complete run; then repeat for the real-world experiment |
+| 0. Bench, props off | `./install.sh` done; `/mavros/state` connected; camera at 1280x720. **Calibrate** (print a chessboard, `tools/calibrate_camera.py`, copy the YAML to `robot/config/camera.yaml`). Measure `camera_offset`. Photos of the printed marker at 1, 2, 3 m with `--test` | range within ~3 cm at 1 m and ~5% at 3 m |
+| 1. Manual hover | Pilot flies LOITER with source set 2; watch `ros2 topic echo /mavros/local_position/pose` while hovering 60 s | drift under ~0.5 m, no EKF warnings |
+| 2. First GUIDED | `docker compose run --rm mission ros2 run drone_mission hello_flight --ros-args -p altitude:=1.0 -p target_x:=1.0 -p ekf_source_set:=2 -p heading_frame:=true` (1 m forward) | takes off, moves 1 m, lands; pilot takeover tested once |
+| 3. Marker only | marker 3 m ahead at 1.2 m: `... marker_approach --ros-args --params-file /ws/src/drone_mission/config/mission_indoor.yaml -p target_range:=1.5`, then `1.0` | holds 5 s, lands |
+| 4. Waypoints | `... waypoint_navigator --ros-args --params-file /ws/src/drone_mission/config/mission_indoor.yaml` | each waypoint within ~0.3 m (tape marks) |
+| 5. Full mission | `docker compose run --rm mission` | complete run; then repeat for the real-world experiment |
+
+(`...` = `docker compose run --rm mission ros2 run drone_mission`, from `~/Drone_Navigation/robot`.)
 
 ## When to start
 
-Stages 0 and 1 don't depend on any more code: start them now, in parallel with the sim work.
-Calibration and the flow-drift check answer the two biggest real-world unknowns (range
-accuracy, and whether indoor waypoints are good enough). Start flying stage 2 once stage 0 has
-passed and the GPS-denied sim run is satisfactory, and leave at least two weeks before the
-final demo for stages 2 to 5; real flights tend to need parameter tuning between sessions.
+Stage 0 can start as soon as a chessboard and a marker are printed. Stage 1 needs only a pilot.
+Leave at least two weeks before the final demo for stages 2 to 5; real flights tend to need
+parameter tuning between sessions.

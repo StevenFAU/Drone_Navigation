@@ -220,8 +220,23 @@ What the experiments showed (and what changed because of them):
 
 ## Real drone
 
-See [docs/real_drone.md](docs/real_drone.md): what the T27 has, indoor positioning, software on
-the Pi, safety setup, and staged test plan. Camera calibration for the Pi Camera 3 Wide:
+See [docs/real_drone.md](docs/real_drone.md): what's on the T27 (surveyed 2026-11-13), the
+flight-controller changes made (originals backed up in `robot/backup/`), the ROS 2 Jazzy Docker
+stack for its Pi (`robot/`), connecting the laptop, safety, and the staged test plan.
+
+```bash
+nmcli con up drone-link                 # Ethernet cable to the Pi (laptop internet stays on Wi-Fi)
+scripts/drone_sync.sh                   # copy code/config to the Pi
+ssh group7@10.43.0.42                   # then: cd ~/Drone_Navigation/robot && docker compose run --rm mission
+source scripts/drone_env.sh             # laptop terminal joins the drone's ROS 2 domain (27)
+```
+
+The indoor mission (`config/mission_indoor.yaml`) gives waypoints as metres forward/left of the
+drone's heading at arming (`heading_frame`), selects the T27's optical-flow EKF source set
+(`ekf_source_set: 2`), stays under the rangefinder's 2 m limit and flies slowly. In the
+GPS-denied sim it completed 2/2 runs (waypoints within 0.07 m, hold at 0.99 m true range).
+
+Camera calibration for the Pi Camera 3 Wide:
 
 ```bash
 python3 tools/calibrate_camera.py calib_photos/ --square 0.025          # -> camera.yaml

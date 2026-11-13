@@ -93,6 +93,20 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
 - Sim options (`--noise`, `--gps-denied`) are SITL param files; `start_sim.sh` always passes `-w`
   so they never stick in the saved parameters.
 
+- Real drone access: Pi 5 user `group7` (key login), `ssh group7@10.43.0.42` over the Ethernet
+  cable after `nmcli con up drone-link` (laptop shares internet). raspberrypi.local flips between
+  10.43.0.42 and the Pi's fixed 192.168.2.5 (unroutable from the laptop): use the IP. Pi Wi-Fi hotspot `raspberrypi` = 10.42.0.1.
+- Drone ROS 2 uses ROS_DOMAIN_ID 27 (sim = 0) so a laptop sim can never command the real drone.
+- On the Pi, an old docker-compose v2.23 in ~/.docker/cli-plugins shadowed the system v5 and
+  failed against the daemon; it was renamed `docker-compose.v2.23-old`.
+- Pi 5 camera needs Raspberry Pi's libcamera fork (pisp pipeline), built in robot/Dockerfile.
+- The Pi throttled (vcgencmd get_throttled 0xe0008) with no fan; fan fitted 2026-11-13.
+- MAVROS 2 with all plugins kept a Pi core at 100%; robot/config/mavros_plugins.yaml allowlists 12 (28%).
+- Jazzy's Ubuntu 24.04 OpenCV is 4.6 (no cv2.aruco.ArucoDetector): marker_tracker.make_detector()
+  falls back to the old API. Test drone-side code in the `mission` container (it mounts the package;
+  dn_mavros has the image's build-time copy).
+- MAV_CMD_SET_EKF_SOURCE_SET (42007) switches EKF sources without arming; not persistent.
+
 ## Status (project plan)
 
 Done: waypoint_navigator, ArUco world + forward camera, marker_approach (P velocity approach,
@@ -100,7 +114,7 @@ position-target final hold), `mission` (full run), ground truth + wind + noise, 
 tools (`tools/run_experiment.py`, `tools/analyze_experiment.py`, results in `results/`),
 GPS-denied sim mode, pilot-takeover detection, camera calibration tool. See README.
 
-Next: phase 2 on the real T27, following `docs/real_drone.md` (bench + calibration first,
-then staged flights). The T27 repo (ahancock516/T27-GPS-Denied-Drone) shows EKF source set 1 =
-GPS, set 2 = MTF-02P flow velocity; VINS-Fusion is not fed to ArduPilot; its camera.yaml is a
-placeholder (fx=600, no distortion).
+Phase 2 (real T27) set up 2026-11-13: drone surveyed, flight-controller params changed
+(table + backups in docs/real_drone.md, robot/backup/), ROS 2 Jazzy Docker stack in robot/,
+indoor mission config (heading_frame, ekf_source_set 2) tested 2/2 in the GPS-denied sim.
+Next: camera calibration + camera_offset measurement (stage 0), then staged flights.
