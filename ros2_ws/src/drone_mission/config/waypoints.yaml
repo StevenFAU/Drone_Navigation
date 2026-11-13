@@ -11,7 +11,7 @@ waypoint_navigator:
       0.0, 0.0, 2.0,
     ]
     tolerance: 0.3        # m, 3D distance that counts as "arrived"
-    hold_time: 2.0        # s to hover at each waypoint
+    waypoint_hold: 2.0    # s to hover at each waypoint
     takeoff_altitude: 2.0 # m
     face_travel: true     # yaw toward the next waypoint before each leg
     timeout_scale: 4.0    # use 1.0 for headless runs

@@ -1,0 +1,26 @@
+# Full mission: waypoints -> search -> marker approach -> hold -> land.
+#   ros2 run drone_mission mission --ros-args --params-file ros2_ws/src/drone_mission/config/mission.yaml
+# Coordinates: metres from the takeoff spot (x = East, y = North, z = height).
+mission:
+  ros__parameters:
+    waypoints: [
+       0.0, -3.0, 2.0,
+      -3.0, -3.0, 2.5,
+      -3.0,  0.0, 2.0,
+       1.0,  0.0, 1.5,
+    ]
+    tolerance: 0.3          # m, waypoint arrival
+    waypoint_hold: 2.0      # s at each waypoint, after settling
+    settle_tolerance: 0.10  # m: settle this close before the hold counts
+    takeoff_altitude: 2.0   # m
+    marker_id: 0
+    marker_size: 0.20       # m, black border included
+    target_range: 1.0       # m in front of the marker
+    hold_time: 5.0          # s
+    range_tol: 0.10         # m
+    lateral_tol: 0.15       # m
+    height_tol: 0.10        # m
+    bearing_tol_deg: 5.0
+    entry_fraction: 0.5     # start the hold once errors are inside half the tolerance
+    fine_radius: 0.3        # m: position targets near the hold spot (0 = P velocity only)
+    timeout_scale: 4.0      # 1.0 is fine headless

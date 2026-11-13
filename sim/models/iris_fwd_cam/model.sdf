@@ -1,8 +1,11 @@
 <?xml version='1.0'?>
 <sdf version="1.9">
   <model name="iris_fwd_cam">
+    <!-- iris_with_standoffs with wind enabled on its body; keeps the name iris_with_standoffs so
+         the ArduPilot plugin's joint names below still match. -->
     <include>
-      <uri>model://iris_with_standoffs</uri>
+      <uri>model://iris_base_wind</uri>
+      <name>iris_with_standoffs</name>
     </include>
 
 
@@ -10,6 +13,7 @@
          looking along body +x (forward), no gimbal. 102 deg horizontal FOV, 16:9.
          Gazebo topic /camera/image (+ /camera/camera_info); bridged to ROS by start_sim.sh. -->
     <link name="camera_link">
+      <enable_wind>true</enable_wind>
       <pose>0.15 0 -0.02 0 0 0</pose>
       <inertial><mass>0.01</mass>
         <inertia><ixx>1e-6</ixx><iyy>1e-6</iyy><izz>1e-6</izz><ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>

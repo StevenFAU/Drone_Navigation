@@ -73,17 +73,34 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
   persists across flights in one SITL session, so mission nodes must record the takeoff position
   and offset by it (`waypoint_navigator` does).
   ArduPilot GUIDED velocity commands time out after ~3 s, so stream setpoints at ~10 Hz.
+- Lyrical's rclpy logger has `.warning()` but no `.warn()`; `.warn` raised AttributeError inside
+  the abort handler, so failed missions never switched to LAND. Use `.warning()`.
+- Big images (1280x720 rgb8, 2.7 MB) over best-effort DDS lost fragments: 10 Hz with >1 s gaps
+  instead of 15 Hz. The tracker subscribes reliable, depth 1 (`image_reliable` param).
+- `solvePnP` on a far, grazing marker can return NaN; one NaN poisoned the filtered marker pose
+  for good (drone sat still until lost_timeout). The tracker now rejects non-finite solves and
+  normal flips (planar-pose ambiguity).
+- ros_gz_bridge's Pose_V -> TFMessage loses the model names (empty child_frame_id); ground truth
+  uses PosePublisher plugins per model (`/model/<name>/pose`) bridged as PoseStamped.
+- WindEffects ignores model-level `<enable_wind>` for included models: `sim/models/iris_base_wind`
+  is iris_with_standoffs with `enable_wind` on base_link. Force scaling 0.75 = ~4 deg lean at
+  4.5 m/s. In 3.5 m/s gusts ArduPilot's own position hold wanders ±0.2 m (measured with a fixed
+  target), so ±0.10 m marker-hold tolerances need wind under ~2.5 m/s.
+- A drone landed in gusty wind can fail "Gyros inconsistent" and reject the next takeoff; the
+  experiment runner restarts the sim for every run.
+- SITL rangefinder type 100 ("SIM") gives "No Data" with Gazebo physics; `--gps-denied` uses the
+  simulated analog sonar (`RNGFND1_TYPE 1`, pin 0) like ArduPilot's own optical-flow test.
+- Sim options (`--noise`, `--gps-denied`) are SITL param files; `start_sim.sh` always passes `-w`
+  so they never stick in the saved parameters.
 
-## Next steps (project plan)
+## Status (project plan)
 
-1. ~~`waypoint_navigator` node~~ done (see README). Shared MAVROS code is in `flight_base.py`.
-2. ~~ArUco world + fixed forward camera~~ done: `sim/worlds/aruco_world.sdf` (default world),
-   models in `sim/models`, camera on ROS as `/camera/image` + `/camera/camera_info` (see README).
-   Headless Gazebo needs `--headless-rendering` for the camera (sim_gazebo.sh passes it).
-   The sim camera is an ideal pinhole; the real Pi Camera 3 Wide needs calibrating (and probably
-   the fisheye model) before its solvePnP ranges can be trusted.
-3. ~~`marker_approach` node~~ done (see README). Detection/pose in `marker_tracker.py` (filtered
-   ENU estimate of the static marker); velocity setpoints via `FlightNode.send_velocity` on
-   `/mavros/setpoint_raw/local` (ENU, MAVROS converts). Next: a `mission` node chaining
-   waypoints -> search -> approach -> hold -> land.
-4. 10-run experiment: log the true pose from Gazebo, then plot the paths and a per-waypoint error table.
+Done: waypoint_navigator, ArUco world + forward camera, marker_approach (P velocity approach,
+position-target final hold), `mission` (full run), ground truth + wind + noise, experiment
+tools (`tools/run_experiment.py`, `tools/analyze_experiment.py`, results in `results/`),
+GPS-denied sim mode, pilot-takeover detection, camera calibration tool. See README.
+
+Next: phase 2 on the real T27, following `docs/real_drone.md` (bench + calibration first,
+then staged flights). The T27 repo (ahancock516/T27-GPS-Denied-Drone) shows EKF source set 1 =
+GPS, set 2 = MTF-02P flow velocity; VINS-Fusion is not fed to ArduPilot; its camera.yaml is a
+placeholder (fx=600, no distortion).

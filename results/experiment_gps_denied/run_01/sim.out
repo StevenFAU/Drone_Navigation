@@ -1,0 +1,14 @@
+started gazebo (log: logs/sim_gazebo.log)
+started ardupilot (log: logs/sim_ardupilot.log)
+started mavros (log: logs/sim_mavros.log)
+started bridge (log: logs/sim_bridge.log)
+waiting for MAVROS to connect to ArduPilot...
+
+READY. In another terminal tab (in the drone_mission folder) run:
+  source setup/env.sh && ros2 run drone_mission mission
+
+Leave this tab open. Ctrl-C here stops the sim.
+
+stopping sim...
+sim stopped
+one of the sim programs exited - check logs/sim_*.log

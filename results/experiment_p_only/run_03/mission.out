@@ -1,0 +1,93 @@
+[INFO] [1794512002.828697094] [mission]: mission: 4 waypoints, then marker 0 at 1.0 m for 5.0 s
+[INFO] [1794512002.828955054] [mission]: waiting for MAVROS connection to ArduPilot...
+[INFO] [1794512003.880124418] [mission]: waiting for local position...
+[INFO] [1794512004.132035352] [mission]: waiting for mode GUIDED...
+[INFO] [1794512012.334024979] [mission]: armed
+[INFO] [1794512012.384842667] [mission]: waiting for altitude 2.0 m...
+[INFO] [1794512018.905650287] [mission]: waypoint 1/4: flying to (0.0, -3.0, 2.0), 2.9 m away
+[INFO] [1794512023.618203669] [mission]: waypoint 1 reached in 2.7 s, error 0.29 m (after 2 s hold: 0.09 m)
+[INFO] [1794512025.121689753] [mission]: waypoint 2/4: flying to (-3.0, -3.0, 2.5), 3.0 m away
+[INFO] [1794512029.933120972] [mission]: waypoint 2 reached in 2.8 s, error 0.25 m (after 2 s hold: 0.27 m)
+[INFO] [1794512031.537625167] [mission]: waypoint 3/4: flying to (-3.0, 0.0, 2.0), 3.2 m away
+[INFO] [1794512036.149885322] [mission]: waypoint 3 reached in 2.6 s, error 0.26 m (after 2 s hold: 0.28 m)
+[INFO] [1794512037.754008588] [mission]: waypoint 4/4: flying to (1.0, 0.0, 1.5), 3.9 m away
+[INFO] [1794512042.764751580] [mission]: waypoint 4 reached in 3.0 s, error 0.28 m (after 2 s hold: 0.29 m)
+[INFO] [1794512042.765061784] [mission]: waypoints done:
+[INFO] [1794512042.765335433] [mission]:   wp 1: (0.0, -3.0, 2.0)    2.7 s  arrival 0.28 m  hold 0.09 m
+[INFO] [1794512042.765601242] [mission]:   wp 2: (-3.0, -3.0, 2.5)    2.8 s  arrival 0.25 m  hold 0.27 m
+[INFO] [1794512042.765874092] [mission]:   wp 3: (-3.0, 0.0, 2.0)    2.6 s  arrival 0.26 m  hold 0.28 m
+[INFO] [1794512042.766134324] [mission]:   wp 4: (1.0, 0.0, 1.5)    3.0 s  arrival 0.28 m  hold 0.29 m
+[INFO] [1794512042.766549382] [mission]: searching: yawing at 20 deg/s
+[INFO] [1794512045.777788887] [mission]: marker found after turning 57 deg
+[INFO] [1794512045.778041950] [mission]: approaching: marker 5.84 m out, +2.27 m to the side, +0.20 m height diff, bearing +49 deg
+[INFO] [1794512045.778272671] [mission]:   range 5.84 m  lateral +2.27 m  height +0.20 m  bearing +49.0 deg
+[INFO] [1794512048.791843926] [mission]:   range 5.40 m  lateral +0.42 m  height +0.00 m  bearing +2.2 deg
+[INFO] [1794512051.805313952] [mission]:   range 3.87 m  lateral +0.99 m  height -0.00 m  bearing +0.2 deg
+[INFO] [1794512054.831754083] [mission]:   range 2.27 m  lateral +0.28 m  height +0.00 m  bearing -0.6 deg
+[INFO] [1794512057.840981098] [mission]:   range 1.08 m  lateral +0.20 m  height +0.00 m  bearing +0.3 deg
+[INFO] [1794512060.849928646] [mission]:   range 1.00 m  lateral -0.09 m  height +0.00 m  bearing -5.0 deg
+[INFO] [1794512063.864139204] [mission]:   range 1.11 m  lateral -0.05 m  height -0.00 m  bearing +1.4 deg
+[INFO] [1794512066.880909750] [mission]:   range 1.03 m  lateral +0.13 m  height -0.00 m  bearing +1.4 deg
+[INFO] [1794512067.885207228] [mission]: settled after 22.1 s; holding 5 s
+[INFO] [1794512068.688368248] [mission]: left tolerance after 0.8 s; restarting hold (range 0.89 m, lateral -0.05 m, height +0.01 m, bearing -3.2 deg)
+[INFO] [1794512069.891596695] [mission]:   range 0.85 m  lateral -0.06 m  height +0.01 m  bearing -2.6 deg
+[INFO] [1794512071.799107817] [mission]: settled after 26.0 s; holding 5 s
+[INFO] [1794512073.911056977] [mission]: left tolerance after 2.1 s; restarting hold (range 1.11 m, lateral +0.08 m, height -0.00 m, bearing +1.6 deg)
+[INFO] [1794512073.911423318] [mission]:   range 1.11 m  lateral +0.08 m  height -0.00 m  bearing +1.6 deg
+[INFO] [1794512076.921808019] [mission]:   range 1.04 m  lateral -0.11 m  height +0.00 m  bearing -3.6 deg
+[INFO] [1794512079.930711391] [mission]:   range 0.92 m  lateral -0.00 m  height -0.00 m  bearing +3.9 deg
+[INFO] [1794512082.943242141] [mission]:   range 0.96 m  lateral +0.12 m  height +0.00 m  bearing +0.1 deg
+[INFO] [1794512083.545553760] [mission]: settled after 37.8 s; holding 5 s
+[INFO] [1794512084.852471633] [mission]: left tolerance after 1.3 s; restarting hold (range 0.99 m, lateral -0.10 m, height +0.00 m, bearing -5.2 deg)
+[INFO] [1794512085.955621279] [mission]:   range 1.05 m  lateral -0.13 m  height -0.00 m  bearing -2.4 deg
+[INFO] [1794512088.964163342] [mission]:   range 1.06 m  lateral +0.03 m  height -0.00 m  bearing +2.8 deg
+[INFO] [1794512091.299291480] [mission]: settled after 45.5 s; holding 5 s
+[INFO] [1794512092.503028124] [mission]: left tolerance after 1.2 s; restarting hold (range 0.90 m, lateral +0.01 m, height +0.01 m, bearing -2.8 deg)
+[INFO] [1794512092.503286610] [mission]:   range 0.90 m  lateral +0.01 m  height +0.01 m  bearing -2.8 deg
+[INFO] [1794512095.514207258] [mission]:   range 0.93 m  lateral -0.06 m  height +0.01 m  bearing +0.7 deg
+[INFO] [1794512095.815289900] [mission]: settled after 50.0 s; holding 5 s
+[INFO] [1794512097.821995609] [mission]: left tolerance after 2.0 s; restarting hold (range 1.11 m, lateral +0.06 m, height -0.00 m, bearing +2.8 deg)
+[INFO] [1794512098.524743079] [mission]:   range 1.11 m  lateral +0.12 m  height -0.01 m  bearing +1.3 deg
+[INFO] [1794512101.546709309] [mission]:   range 1.01 m  lateral -0.13 m  height +0.00 m  bearing -3.3 deg
+[INFO] [1794512104.558460945] [mission]:   range 0.92 m  lateral +0.09 m  height +0.00 m  bearing +4.3 deg
+[INFO] [1794512107.571130237] [mission]:   range 0.96 m  lateral +0.09 m  height +0.00 m  bearing -2.5 deg
+[INFO] [1794512110.595764003] [mission]:   range 1.07 m  lateral -0.08 m  height +0.00 m  bearing -1.1 deg
+[INFO] [1794512113.605577240] [mission]:   range 1.06 m  lateral +0.01 m  height +0.00 m  bearing +3.6 deg
+[INFO] [1794512116.628256665] [mission]:   range 0.89 m  lateral +0.02 m  height +0.01 m  bearing -3.4 deg
+[INFO] [1794512119.641383560] [mission]:   range 0.94 m  lateral -0.03 m  height +0.00 m  bearing +1.9 deg
+[INFO] [1794512119.741998862] [mission]: settled after 74.0 s; holding 5 s
+[INFO] [1794512121.848619590] [mission]: left tolerance after 2.1 s; restarting hold (range 1.10 m, lateral +0.11 m, height -0.01 m, bearing +2.4 deg)
+[INFO] [1794512122.652489522] [mission]:   range 1.12 m  lateral +0.11 m  height -0.01 m  bearing +1.2 deg
+[INFO] [1794512125.662682892] [mission]:   range 0.99 m  lateral -0.12 m  height +0.00 m  bearing -3.0 deg
+[INFO] [1794512128.674904022] [mission]:   range 0.92 m  lateral +0.09 m  height +0.00 m  bearing +4.5 deg
+[INFO] [1794512130.781829632] [mission]: settled after 85.0 s; holding 5 s
+[INFO] [1794512132.590637381] [mission]: left tolerance after 1.8 s; restarting hold (range 0.99 m, lateral -0.05 m, height +0.00 m, bearing -5.5 deg)
+[INFO] [1794512132.590886717] [mission]:   range 0.99 m  lateral -0.05 m  height +0.00 m  bearing -5.5 deg
+[INFO] [1794512135.602842258] [mission]:   range 1.09 m  lateral -0.06 m  height -0.00 m  bearing +0.6 deg
+[ERROR] [1794512135.804319730] [mission]: approach timed out
+[INFO] [1794512135.881786307] [mission]: run log: results/experiment_10runs/run_03/mission_20261112_143332.csv / .json
+Traceback (most recent call last):
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/build/drone_mission/drone_mission/flight_base.py", line 300, in run_node
+    node.mission()
+    ~~~~~~~~~~~~^^
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/build/drone_mission/drone_mission/mission.py", line 45, in mission
+    self.approach_and_hold()
+    ~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/build/drone_mission/drone_mission/marker_approach.py", line 152, in approach_and_hold
+    raise MissionError('approach timed out')
+drone_mission.flight_base.MissionError: approach timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/install/drone_mission/lib/drone_mission/mission", line 33, in <module>
+    sys.exit(load_entry_point('drone-mission', 'console_scripts', 'mission')())
+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/build/drone_mission/drone_mission/mission.py", line 51, in main
+    run_node(Mission)
+    ~~~~~~~~^^^^^^^^^
+  File "/home/clipbird/Projects/Robotics/Drone_Navigation/ros2_ws/build/drone_mission/drone_mission/flight_base.py", line 309, in run_node
+    node.get_logger().warn('aborting: switching to LAND')
+    ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'RcutilsLogger' object has no attribute 'warn'
+[ros2run]: Process exited with failure 1

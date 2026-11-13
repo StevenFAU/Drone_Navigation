@@ -1,0 +1,88 @@
+{
+  "node": "mission",
+  "success": true,
+  "true_origin": {
+    "x": -8.59916819870687e-09,
+    "y": 2.42599162980639e-10,
+    "z": 0.19499942669046594,
+    "yaw": 1.570796326881345
+  },
+  "log_csv": "results/experiment_gps_denied/run_05/mission_20261112_163834.csv",
+  "started": "20261112_163834",
+  "waypoints": [
+    {
+      "waypoint": 1,
+      "x": 0.0,
+      "y": -3.0,
+      "z": 2.0,
+      "leg_time_s": 2.61,
+      "arrival_error_m": 0.273,
+      "settle_time_s": 4.63,
+      "hold_error_m": 0.006,
+      "hold_s": 2.0,
+      "t_end": 15.8
+    },
+    {
+      "waypoint": 2,
+      "x": -3.0,
+      "y": -3.0,
+      "z": 2.5,
+      "leg_time_s": 2.6,
+      "arrival_error_m": 0.295,
+      "settle_time_s": 4.51,
+      "hold_error_m": 0.007,
+      "hold_s": 2.0,
+      "t_end": 26.54
+    },
+    {
+      "waypoint": 3,
+      "x": -3.0,
+      "y": 0.0,
+      "z": 2.0,
+      "leg_time_s": 2.71,
+      "arrival_error_m": 0.223,
+      "settle_time_s": 4.55,
+      "hold_error_m": 0.012,
+      "hold_s": 2.0,
+      "t_end": 37.41
+    },
+    {
+      "waypoint": 4,
+      "x": 1.0,
+      "y": 0.0,
+      "z": 1.5,
+      "leg_time_s": 3.01,
+      "arrival_error_m": 0.219,
+      "settle_time_s": 4.59,
+      "hold_error_m": 0.008,
+      "hold_s": 2.0,
+      "t_end": 48.62
+    }
+  ],
+  "search": {
+    "turned_deg": 51.7,
+    "time_s": 2.7
+  },
+  "hold": {
+    "target_range": 1.0,
+    "hold_time": 5.0,
+    "fine_radius": 0.3,
+    "approach_s": 12.5,
+    "restarts": 0,
+    "range_mean": 0.9964,
+    "range_worst": 1.0481,
+    "lateral_mean": -0.0065,
+    "lateral_worst": -0.0843,
+    "height_mean": -0.0019,
+    "height_worst": 0.0088,
+    "bearing_mean_deg": -0.137,
+    "bearing_worst_deg": -1.705
+  },
+  "duration_s": 85.9,
+  "true_marker": {
+    "x": 0.0,
+    "y": 6.0,
+    "z": 0.0,
+    "yaw": -1.5707963267948963
+  }
+}

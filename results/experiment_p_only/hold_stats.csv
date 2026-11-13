@@ -1,0 +1,4 @@
+run,true_range_mean,true_range_worst,true_lateral_mean,true_lateral_worst,true_height_mean,true_height_worst,true_bearing_mean_deg,true_bearing_worst_deg,est_range_mean,approach_s,restarts
+1,0.9768,1.0669,-0.0178,0.0512,0.0018,0.0059,-1.108,-2.4141,0.9838,19.6,1
+5,1.0223,1.0464,0.0293,0.0773,0.0,0.0026,0.9567,2.8423,1.0329,22.1,3
+9,1.0005,0.9469,0.032,0.097,0.0018,0.0049,1.2566,2.7821,1.0103,13.3,0

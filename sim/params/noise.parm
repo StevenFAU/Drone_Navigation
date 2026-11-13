@@ -1,0 +1,4 @@
+# Sensor noise for experiments (start_sim.sh --noise). SITL adds these to the sensors it
+# simulates itself (GPS, barometer); Gazebo supplies the IMU. Wind is separate (Gazebo).
+SIM_GPS_NOISE 0.3
+SIM_BARO_RND 0.2

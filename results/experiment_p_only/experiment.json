@@ -1,0 +1,101 @@
+{
+  "runs": 10,
+  "wind_min": 1.0,
+  "wind_max": 4.0,
+  "noise": true,
+  "seed": 1,
+  "params_file": "",
+  "started": "2026-11-12T14:28:45",
+  "run_conditions": [
+    {
+      "run": 1,
+      "wind_speed": 1.4,
+      "wind_dir_deg": 125.1,
+      "wind_x": -0.806,
+      "wind_y": 1.148,
+      "exit_code": 0,
+      "wall_s": 97.8
+    },
+    {
+      "run": 2,
+      "wind_speed": 3.29,
+      "wind_dir_deg": -88.2,
+      "wind_x": 0.105,
+      "wind_y": -3.29,
+      "exit_code": 1,
+      "wall_s": 157.5
+    },
+    {
+      "run": 3,
+      "wind_speed": 2.49,
+      "wind_dir_deg": -18.2,
+      "wind_x": 2.362,
+      "wind_y": -0.776,
+      "exit_code": 1,
+      "wall_s": 157.8
+    },
+    {
+      "run": 4,
+      "wind_speed": 2.95,
+      "wind_dir_deg": 103.9,
+      "wind_x": -0.712,
+      "wind_y": 2.868,
+      "exit_code": 1,
+      "wall_s": 157.5
+    },
+    {
+      "run": 5,
+      "wind_speed": 1.28,
+      "wind_dir_deg": -169.8,
+      "wind_x": -1.261,
+      "wind_y": -0.227,
+      "exit_code": 0,
+      "wall_s": 100.5
+    },
+    {
+      "run": 6,
+      "wind_speed": 3.51,
+      "wind_dir_deg": -24.2,
+      "wind_x": 3.199,
+      "wind_y": -1.438,
+      "exit_code": 1,
+      "wall_s": 158.0
+    },
+    {
+      "run": 7,
+      "wind_speed": 3.29,
+      "wind_dir_deg": -179.2,
+      "wind_x": -3.287,
+      "wind_y": -0.043,
+      "exit_code": 1,
+      "wall_s": 156.6
+    },
+    {
+      "run": 8,
+      "wind_speed": 2.34,
+      "wind_dir_deg": 79.8,
+      "wind_x": 0.416,
+      "wind_y": 2.299,
+      "exit_code": 1,
+      "wall_s": 157.7
+    },
+    {
+      "run": 9,
+      "wind_speed": 1.69,
+      "wind_dir_deg": 160.3,
+      "wind_x": -1.588,
+      "wind_y": 0.569,
+      "exit_code": 0,
+      "wall_s": 91.5
+    },
+    {
+      "run": 10,
+      "wind_speed": 3.7,
+      "wind_dir_deg": -169.0,
+      "wind_x": -3.636,
+      "wind_y": -0.708,
+      "exit_code": 1,
+      "wall_s": 157.5
+    }
+  ]
+}

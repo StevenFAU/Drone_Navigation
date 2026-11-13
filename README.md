@@ -1,7 +1,11 @@
 # Drone_Navigation: waypoints + ArUco marker arrival
 
-Simulation setup for the waypoint/marker project. It matches the real T27 drone's
-flight software: **ArduCopter 4.6.3** (not PX4), controlled through **MAVROS on ROS 2**.
+A quadcopter takes off, flies 3-4 waypoints, searches for a printed ArUco marker, flies to 1 m in
+front of it, holds there for 5 s and lands. Phase 1 (this repo) is simulation; phase 2 runs the
+same ROS 2 nodes on the real T27 drone (see [docs/real_drone.md](docs/real_drone.md)).
+
+The sim matches the T27's flight software: **ArduCopter 4.6.3** (not PX4), controlled through
+**MAVROS on ROS 2**, with a fixed forward camera like its Pi Camera 3 Wide.
 
 | Piece | Version | Location |
 | --- | --- | --- |
@@ -9,8 +13,28 @@ flight software: **ArduCopter 4.6.3** (not PX4), controlled through **MAVROS on 
 | ROS 2 | Lyrical | `/opt/ros/lyrical` |
 | Gazebo | Jetty (from ROS `ros_gz` vendor packages) | |
 | ArduPilot SITL | Copter-4.6.3 | `~/ardupilot` |
-| ArduPilot Gazebo plugin | main | `~/ardupilot_gazebo` |
+| ArduPilot Gazebo plugin | pinned commit | `~/ardupilot_gazebo` |
 | This project's ROS 2 code | | `ros2_ws/src/drone_mission` |
+
+## Quick demo
+
+Run everything from this folder (`cd ~/Projects/Robotics/Drone_Navigation`).
+
+```bash
+scripts/start_sim.sh                       # terminal 1: wait for READY, leave it open
+```
+
+```bash
+source setup/env.sh
+ros2 run rqt_image_view rqt_image_view /camera/image     # terminal 2 (optional): drone's camera
+```
+
+```bash
+source setup/env.sh
+ros2 run drone_mission mission             # terminal 3: the full mission (~70 s)
+```
+
+Ctrl-C in terminal 1 stops the sim. Closing the Gazebo window also stops it.
 
 ## One-time setup
 
@@ -24,170 +48,191 @@ setup/02_build_sim.sh        # no sudo; ~15-30 min
 With Claude Code on that machine, open this folder and ask it to "set up this project".
 `CLAUDE.md` tells it the steps and the problems hit on the first machine.
 
-## Running the sim
-
-Easiest: one terminal tab runs everything (Gazebo, ArduPilot SITL, MAVROS, camera bridge);
-Ctrl-C there (or closing Gazebo) stops them all. The default world is `sim/worlds/aruco_world.sdf`
-(see below); `WORLD=iris_runway.sdf scripts/start_sim.sh` gives the original ArduPilot one.
+## The sim
 
 ```bash
-scripts/start_sim.sh         # add --headless to skip the Gazebo window
+scripts/start_sim.sh                 # Gazebo window + ArduPilot SITL + MAVROS + Gazebo-ROS bridge
+scripts/start_sim.sh --headless      # no window (faster; the camera still renders)
+scripts/start_sim.sh --noise         # GPS + barometer noise (sim/params/noise.parm)
+scripts/start_sim.sh --gps-denied    # no GPS: optical flow + rangefinder, like the T27 indoors
+WORLD=iris_runway.sdf scripts/start_sim.sh   # ArduPilot's original world instead
 ```
 
-Wait for `READY`, then run `hello_flight` in a second tab (below).
-Don't close the Gazebo window while flying: it stops the simulation.
+Options combine. Each start wipes ArduPilot's saved parameters, so options never carry over.
+`start_sim.sh` refuses to start while an earlier sim is still running and prints the PIDs to
+kill. Program output goes to `logs/sim_*.log`. Each piece can also run in its own terminal:
+`scripts/sim_gazebo.sh`, `scripts/sim_ardupilot.sh` (MAVProxy console), `scripts/mavros.sh`,
+`scripts/gz_bridge.sh`.
 
-Or run each piece in its own terminal (useful for debugging):
+**World** (`sim/worlds/aruco_world.sdf`): ArduPilot's runway world plus
+
+- **Drone `iris_fwd_cam`**: the ArduPilot Iris without its gimbal, plus a fixed camera like the
+  T27's: 15 cm ahead of the IMU, 2 cm below, looking forward. 1280x720 at 15 Hz, 102° horizontal
+  FOV, ideal pinhole (fx = fy = 518.4). Starts at the origin facing North.
+- **Marker `aruco_marker`**: ArUco `DICT_4X4_50` id 0, 0.20 m (black border included) on a white
+  board, centre 1.5 m up a post, 6 m North of the start, facing the drone.
+- **Wind**: Gazebo's WindEffects plugin, off by default. Set it while running:
+  `gz topic -t /world/aruco_world/wind -m gz.msgs.Wind -p 'linear_velocity: {x: 3, y: 0}, enable_wind: true'`
+  (blows toward +x = East at 3 m/s; the plugin adds gusts and direction swings). At 4.5 m/s the
+  drone leans ~4° into it.
+- **Ground truth**: PosePublisher plugins on the drone and marker, bridged to ROS as
+  `/ground_truth/drone` (50 Hz) and `/ground_truth/marker`.
+
+**ROS topics from the bridge**: `/camera/image`, `/camera/camera_info`, `/ground_truth/drone`,
+`/ground_truth/marker`. Camera tools:
 
 ```bash
-scripts/sim_gazebo.sh        # 1. Gazebo with the Iris drone (add --headless to skip the window)
-scripts/sim_ardupilot.sh     # 2. ArduCopter SITL + MAVProxy console/map (--headless for no windows, -w to reset params)
-scripts/mavros.sh            # 3. MAVROS on tcp:5762
-scripts/camera_bridge.sh     # 4. forward camera -> ROS /camera/image, /camera/camera_info
+python3 sim/tools/check_marker.py          # grab a frame, detect the marker, print the solvePnP pose
+python3 sim/tools/make_marker.py --id 0    # regenerate (and print, at 0.20 m) the marker
 ```
 
-Then, in another terminal:
+**Speed**: headless runs at real time. With the Gazebo window on a laptop iGPU it can drop to
+~0.3x; the nodes multiply their timeouts by `timeout_scale` (default 4) for that, and the
+experiment uses 1.0 headless.
+
+## The nodes
+
+All in `ros2_ws/src/drone_mission/drone_mission`, run as `ros2 run drone_mission <node>`.
+
+| Node | Does |
+| --- | --- |
+| `mission` | **The full project**: take off, waypoints, search, marker approach, 5 s hold, land |
+| `waypoint_navigator` | Waypoints only, then land |
+| `marker_approach` | Take off, search, approach, hold, land |
+| `hello_flight` | Smoke test: take off, fly 3 m East, land |
+
+Shared code: `flight_base.py` (MAVROS connection, GUIDED, arming, takeoff, position and velocity
+setpoints, landing, abort-to-LAND on errors, pilot-takeover detection, run logging) and
+`marker_tracker.py` (ArUco detection and pose). Settings are ROS parameters; the demo values are in
+`config/mission.yaml`:
 
 ```bash
-source setup/env.sh
-ros2 run drone_mission hello_flight
+ros2 run drone_mission mission --ros-args --params-file ros2_ws/src/drone_mission/config/mission.yaml
+ros2 run drone_mission mission --ros-args -p waypoints:="[3.0,0.0,2.0, 3.0,-3.0,2.0, 0.0,0.0,1.5]"
 ```
 
-The drone should switch to GUIDED, arm (after ~30 s of SITL pre-arm checks), take off
-to 2 m, fly 3 m East, hold, and land. First verified 2026-11-12: reached the target with 0.27 m
-error and landed at x = 3.0 m. Logs from that run are in `logs/test_*.log`.
+**Coordinates**: waypoints are metres from the takeoff spot, x = East, y = North, z = height, as a
+flat list `[x1, y1, z1, x2, y2, z2, ...]`. (MAVROS's own local frame is anchored where ArduPilot
+first got a position fix and doesn't reset between flights, so the nodes record the takeoff spot
+and add it on.) The default route is a loop to the South-West that ends 1 m East of the start,
+heading East, with the marker out of view, so the search always runs.
 
-Run the scripts from this folder (`cd ~/Projects/Robotics/Drone_Navigation` first): they use relative paths.
+**Waypoints**: turn to face the next waypoint, stream position setpoints at 10 Hz until within
+`tolerance` (arrived), keep hovering until settled within `settle_tolerance`, hover
+`waypoint_hold` s, next. ArduPilot overshoots a 3-4 m step by 10-20 cm and settles back in 2-4 s;
+without the settle step a 2 s hold ends right at the overshoot peak.
 
-## Waypoint mission
+**Marker approach** (proportional control, velocity setpoints at 10 Hz):
 
-With the sim running (`READY`), in a second tab:
+- *search*: yaw in place at `search_rate_deg` until the camera sees the marker (gives up after
+  one full turn and lands)
+- *approach*: yaw rate from the bearing to the marker (keeps it centred), climb rate from the
+  height difference, horizontal velocity toward the spot `target_range` out along the marker's
+  normal (closes the range and squares the drone up to the marker). Speed capped at `max_speed`.
+- *final metres*: within `fine_radius` (0.3 m) of that spot it switches to position targets: the
+  spot itself, recomputed from the marker estimate every frame, yawed at the marker centre.
+  ArduPilot's own position controller (with its integrators) then fights the wind; the slow outer
+  P loop alone could not hold ±0.10 m in gusts (3/10 runs in the first experiment, below).
+- *hold*: starts once every error is within `entry_fraction` (half) of its tolerance, then counts
+  while they stay within the full tolerance with a fresh detection; leaving it restarts the 5 s.
+- If the marker drops out the drone stops and keeps facing where it was; after `lost_timeout` s
+  it lands.
 
-```bash
-source setup/env.sh
-ros2 run drone_mission waypoint_navigator                       # default: 4 m square at 2-3 m
-ros2 run drone_mission waypoint_navigator --ros-args --params-file ros2_ws/src/drone_mission/config/waypoints.yaml
-ros2 run drone_mission waypoint_navigator --ros-args -p waypoints:="[5.0,0.0,2.0, 5.0,5.0,3.0]"
-```
-
-It arms, takes off, turns to face each waypoint, flies there, holds, and after the last one
-lands. Waypoints are a flat `[x1, y1, z1, x2, y2, z2, ...]` list in metres from the takeoff
-point (x = East, y = North, z = height). Edit `config/waypoints.yaml` for your own mission.
+How the marker pose is built: `solvePnP` (IPPE_SQUARE) gives the marker in the camera frame; the
+camera mount and the drone's attitude from MAVROS turn it into the world frame; since the marker
+is static, its world position and facing direction are low-pass filtered across frames, which
+cancels camera tilt while the drone accelerates and rides through dropped frames. The facing
+direction is only good to a few degrees at 4-6 m (tens of cm of apparent sideways offset), so
+the sideways correction fades in within 2 m. Fisheye calibrations (`equidistant`) are handled.
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
-| `waypoints` | 4 m square | flat list of x, y, z triples |
-| `tolerance` | 0.3 | m (3D) that counts as arrived |
-| `hold_time` | 2.0 | s to hover at each waypoint |
-| `takeoff_altitude` | 2.0 | m |
+| `waypoints` | route above | flat list of x, y, z triples (m) |
+| `tolerance` | 0.3 | m (3D) that counts as reaching a waypoint |
+| `waypoint_hold` | 2.0 | s to hover at each waypoint, once settled |
+| `settle_tolerance` / `settle_timeout` | 0.10 / 10 | m to settle within before the hold counts (ArduPilot overshoots 10-20 cm), max s |
+| `takeoff_altitude` | 2.0 (`marker_approach`: 1.5) | m |
 | `face_travel` | true | yaw toward the next waypoint before each leg |
-| `timeout_scale` | 4.0 | multiplies waits; 1.0 is fine headless |
-| `log_dir` | `logs/` | where the CSVs go |
-
-Each run writes `logs/waypoints_<time>_pose.csv` (10 Hz pose relative to takeoff, current
-waypoint, mode) and `logs/waypoints_<time>_summary.csv` (per-waypoint leg time, error on
-arrival and after the hold). First run 2026-11-12: all four waypoints of the square reached
-in ~2.7 s each, arrival error 0.22-0.27 m, 0.01-0.03 m after the hold.
-
-Both nodes share `drone_mission/flight_base.py` (connect, GUIDED, arm, takeoff, setpoints,
-land, abort-to-LAND on errors); new mission nodes should subclass `FlightNode` too.
-
-**Speed on this laptop:** with the Gazebo window open, the sim runs at ~0.3x real time
-(check with `gz topic -e -n 1 -t /stats | grep real_time`), so everything looks slow-motion.
-`hello_flight` multiplies its waits by `timeout_scale` (default 4) to cope. Headless runs
-are much faster. If a run fails after arming, the node switches the drone to LAND.
-MAVProxy's map window fails to load ("map not ready"); the console works and the map isn't needed.
-
-## ArUco world and forward camera
-
-`sim/worlds/aruco_world.sdf` is ArduPilot's runway world with two changes:
-
-- **Drone `iris_fwd_cam`** (`sim/models/iris_fwd_cam`): the ArduPilot Iris without the gimbal,
-  plus a fixed camera matching the T27's Pi Camera 3 Wide: 15 cm ahead of the IMU, 2 cm below,
-  looking along body x (forward). 1280x720 at 15 Hz, 102 deg horizontal FOV, ideal pinhole
-  (fx = fy = 518.4, cx = 640, cy = 360; no lens distortion). Starts at the origin facing North.
-- **Marker `aruco_marker`** (`sim/models/aruco_marker`): ArUco `DICT_4X4_50` id 0, 0.20 m
-  (black border included) on a 0.30 m white board, centre 1.5 m up a post, 6 m North of the
-  start and facing the drone. Move it with its `<pose>` in the world file.
-
-ROS topics (bridged by `scripts/camera_bridge.sh`): `/camera/image` (`sensor_msgs/Image`, rgb8)
-and `/camera/camera_info` (intrinsics for `solvePnP`). `solvePnP` gives the marker in the camera
-optical frame: x right, y down, z forward.
-
-```bash
-ros2 run rqt_image_view rqt_image_view /camera/image    # watch the camera
-python3 sim/tools/check_marker.py                       # grab a frame, detect, print solvePnP pose
-python3 sim/tools/make_marker.py --id 0                 # regenerate the marker texture
-```
-
-`check_marker.py` saves the annotated frame to `logs/camera_check.png`. Checked 2026-11-12:
-from the ground at 6 m it measured 5.91 m forward / 1.34 m up (geometry: ~5.84 / 1.33 m);
-hovering ~1.8 m away it detected the marker centred in the image. At 640x360 the marker was
-only ~9 px wide at 6 m and not detected, which is why the camera runs at 1280x720.
-
-For the real drone, print `sim/models/aruco_marker/materials/textures/marker.png` so the black
-square measures exactly 0.20 m, and leave a white margin around it.
-
-## Marker approach
-
-With the sim running, in a second tab:
-
-```bash
-source setup/env.sh
-ros2 run drone_mission marker_approach
-```
-
-It takes off to 1.5 m, yaws in place until the camera sees the marker (gives up after a full
-turn), flies to 1 m in front of it, holds there for 5 s, and lands. Control is proportional,
-streamed as velocity setpoints at 10 Hz: yaw rate from the bearing to the marker, climb rate
-from the height difference, and horizontal velocity toward the spot `target_range` out along
-the marker's normal (which also squares the drone up to the marker). The 5 s only counts while
-all of these hold with a fresh detection; any excursion restarts it.
-
-| Parameter | Default | Meaning |
-| --- | --- | --- |
-| `target_range` | 1.0 | m from the marker plane (min 0.5) |
-| `hold_time` | 5.0 | s continuously in tolerance |
+| `target_range` | 1.0 | m from the marker plane to the camera (min 0.5) |
+| `hold_time` | 5.0 | s in tolerance at the marker |
 | `range_tol` / `lateral_tol` / `height_tol` | 0.10 / 0.15 / 0.10 | m |
 | `bearing_tol_deg` | 5.0 | deg |
+| `entry_fraction` | 0.5 | fraction of the tolerances needed to start the hold |
 | `marker_id` / `marker_size` | 0 / 0.20 | id (-1 = any) and side in m |
-| `takeoff_altitude` | 1.5 | m |
 | `max_speed` / `max_climb` / `max_yaw_rate_deg` | 0.5 / 0.3 / 30 | m/s, m/s, deg/s |
 | `k_pos` / `k_z` / `k_yaw` | 0.5 / 0.8 / 1.0 | proportional gains |
-| `search_rate_deg` | 20 | deg/s while searching |
-| `lost_timeout` | 10 | s without a detection before aborting (lands) |
+| `search_rate_deg` | 20 | deg/s, + = counter-clockwise |
+| `lost_timeout` | 10 | s without a detection before landing |
+| `fine_radius` | 0.3 | m from the hold spot where it switches to position targets (0 = P velocity only) |
+| `image_reliable` | true | reliable QoS for the camera (false if a driver only publishes best-effort) |
+| `image_topic` / `camera_info_topic` | `/camera/image` / `/camera/camera_info` | camera topics (real drone: `/camera/image_raw`) |
+| `camera_offset` | [0.15, 0.0, -0.02] | camera position from the IMU, m (forward, left, up) |
+| `timeout_scale` | 4.0 | multiplies waits; 1.0 headless |
+| `log_dir` | `logs/` | where run logs go |
 
-Each run writes `logs/marker_<time>.csv` (10 Hz: phase, range/lateral/height/bearing errors,
-commanded velocities, pose) and prints mean/worst errors over the hold.
+**Run logs**: every run writes `logs/<node>_<time>.csv` at 10 Hz (phase, waypoint, mode, the
+drone's own estimate in the mission frame, Gazebo's true pose, marker errors, commanded
+velocities) and `.json` (per-waypoint results, search, hold statistics, success, true marker
+pose). If anything fails after arming, the node switches the drone to LAND; if the pilot changes
+the flight mode, the node stops commanding and leaves the drone to the pilot.
 
-How the marker pose is built (`drone_mission/marker_tracker.py`): `solvePnP` (IPPE_SQUARE)
-gives the marker in the camera optical frame; the fixed mount (15 cm forward, 2 cm down) and
-the drone's attitude from MAVROS turn that into the local ENU frame; and because the marker is
-static, its ENU position and facing direction are low-pass filtered across frames. That
-cancels the camera tilting as the drone accelerates and carries the controller through dropped
-frames. The facing direction is only good to a few degrees at 4-6 m (tens of cm of apparent
-sideways offset), so the sideways correction fades in within 2 m.
+## Experiment
 
-First runs, 2026-11-12 (headless sim):
+```bash
+python3 tools/run_experiment.py                     # 10 runs -> results/<time>/  (~17 min)
+python3 tools/run_experiment.py --runs 3 --wind-max 0 --no-noise
+python3 tools/analyze_experiment.py results/<time>  # re-make plots and summary
+```
 
-| Start | Search | Approach | Range during hold (mean / worst) | Lateral | Height | Bearing |
+Each run starts a fresh headless sim with GPS/baro noise, sets a random wind (1-4 m/s, random
+direction, plus gusts), flies `mission`, and stops the sim. The analysis scores every run against
+Gazebo's ground truth and writes `summary.md`, `paths.png`, `hold.png`, `waypoint_errors.png` and
+CSV tables.
+
+### Results (2026-11-12)
+
+All errors against Gazebo ground truth. Full tables and plots: `results/<name>/summary.md`.
+
+| Experiment | Conditions | Success | Waypoint error, end of hold | Hold range (target 1.00 m) | Hold lateral | Hold bearing |
 | --- | --- | --- | --- | --- | --- | --- |
-| 5.9 m, facing it | none | 12.6 s | 1.023 / 1.092 m | +0.005 / +0.066 m | 0.000 / +0.010 m | +0.1 / +1.2 deg |
-| 6.0 m, facing away | 133 deg | 11.7 s | 1.019 / 1.090 m | +0.012 / +0.088 m | 0.000 / -0.008 m | 0.0 / +1.9 deg |
+| [`experiment_main`](results/experiment_main/summary.md) | GPS + noise, wind 0.5-2.5 m/s + gusts | **9/10** | 0.07-0.09 m mean (max 0.13) | 0.986 ± 0.040 m (all samples 0.90-1.08) | ±0.11 m max | ±1.7° max |
+| [`experiment_gps_denied`](results/experiment_gps_denied/summary.md) | optical flow + rangefinder, no GPS, no wind | **5/5** | 0.01 m (max 0.02) | 0.989 ± 0.002 m | ±0.03 m max | ±1.3° max |
+| [`experiment_p_only`](results/experiment_p_only/summary.md) | first controller (P velocity only), wind 1-4 m/s | 3/10 | (old hold timing) | 1.000 ± 0.023 m (3 successes) | | |
 
-On the first run the drone's true position put the camera 0.99 m from the marker while the
-estimate said 1.00 m. The range sits at the top of its tolerance when the hold starts because
-the hold begins as soon as it's inside 1.10 m and the P controller closes the rest slowly.
+![paths](results/experiment_main/paths.png)
+
+What the experiments showed (and what changed because of them):
+
+- **Wind is the limit, not vision.** The marker estimate agrees with ground truth to ~1 cm (it reads
+  ~1 cm long, 0.999 vs 0.989 m). With a fixed position target and no vision at all, ArduPilot's own
+  position hold wanders ±0.2 m in 3.5 m/s gusts, so a ±0.10 m hold needs wind under ~2.5 m/s. The one
+  failure in `experiment_main` was at 2.4 m/s; the same seed passed in an earlier run.
+- **P-only velocity control was too slow for gusts** (3/10 above, all failures at ≥2.3 m/s): the
+  range swung ±0.11 m and the 5 s hold kept restarting. Switching to ArduPilot position targets
+  for the final 0.3 m fixed that.
+- **ArduPilot overshoots a 3-4 m step by 10-20 cm** and settles back in 2-4 s, so waypoints now
+  wait until the drone stays within 0.10 m for 1 s before the 2 s hold (`settle_tolerance`).
+- Camera frames over best-effort DDS dropped to ~10 Hz with >1 s gaps; the tracker now uses
+  reliable QoS (15 Hz, no gaps). A far, grazing detection could return NaN and freeze the
+  approach; such solves are rejected now.
+- GPS-denied (optical flow) navigation in the sim is as good as GPS without noise. The sim's flow
+  sensor is ideal, so real flow drift (texture, light, height) will be worse; see the real-drone plan.
+
+## Real drone
+
+See [docs/real_drone.md](docs/real_drone.md): what the T27 has, indoor positioning, software on
+the Pi, safety setup, and staged test plan. Camera calibration for the Pi Camera 3 Wide:
+
+```bash
+python3 tools/calibrate_camera.py calib_photos/ --square 0.025          # -> camera.yaml
+python3 tools/calibrate_camera.py --test camera.yaml marker_1m.jpg      # range check vs tape measure
+```
+
+It fits both the standard (rational) and fisheye lens models and keeps the better one. Checked on
+synthetic photos rendered through a known fisheye lens: it recovered fx = 600.0 (true 600) and
+k1 = -0.051 (true -0.050), and measured a marker at 1.010 m (true 1.006 m).
 
 ## Frames
 
-MAVROS local frame is ENU: x = East, y = North, z = Up, metres from the arming point.
-ArduPilot itself works in NED; MAVROS converts.
-
-## Next steps
-
-1. ~~`waypoint_navigator` node~~ (done).
-2. ~~Forward camera on the Iris and an ArUco world~~ (done).
-3. ~~`marker_approach` node~~ (done).
-4. `mission` node: waypoints -> search -> approach -> hold -> land in one run.
-5. 10-run experiment with logging; plot paths and per-waypoint error.
+MAVROS local frame and the mission frame are ENU: x = East, y = North, z = Up. ArduPilot works in
+NED; MAVROS converts. The camera's `solvePnP` output is x right, y down, z forward.

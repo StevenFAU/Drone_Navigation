@@ -1,0 +1,83 @@
+{
+  "node": "mission",
+  "success": true,
+  "true_origin": {
+    "x": 3.115700202635961e-08,
+    "y": 6.17630974142358e-10,
+    "z": 0.19499945214941147,
+    "yaw": 1.5707963264726663
+  },
+  "log_csv": "results/experiment_10runs/run_05/mission_20261112_143847.csv",
+  "started": "20261112_143847",
+  "waypoints": [
+    {
+      "waypoint": 1,
+      "x": 0.0,
+      "y": -3.0,
+      "z": 2.0,
+      "leg_time_s": 2.6,
+      "arrival_error_m": 0.25,
+      "hold_error_m": 0.181,
+      "hold_s": 2.0,
+      "t_end": 11.27
+    },
+    {
+      "waypoint": 2,
+      "x": -3.0,
+      "y": -3.0,
+      "z": 2.5,
+      "leg_time_s": 2.61,
+      "arrival_error_m": 0.259,
+      "hold_error_m": 0.175,
+      "hold_s": 2.0,
+      "t_end": 17.6
+    },
+    {
+      "waypoint": 3,
+      "x": -3.0,
+      "y": 0.0,
+      "z": 2.0,
+      "leg_time_s": 2.71,
+      "arrival_error_m": 0.26,
+      "hold_error_m": 0.095,
+      "hold_s": 2.0,
+      "t_end": 23.91
+    },
+    {
+      "waypoint": 4,
+      "x": 1.0,
+      "y": 0.0,
+      "z": 1.5,
+      "leg_time_s": 3.01,
+      "arrival_error_m": 0.267,
+      "hold_error_m": 0.146,
+      "hold_s": 2.0,
+      "t_end": 30.56
+    }
+  ],
+  "search": {
+    "turned_deg": 54.2,
+    "time_s": 2.8
+  },
+  "hold": {
+    "target_range": 1.0,
+    "hold_time": 5.0,
+    "approach_s": 22.1,
+    "restarts": 3,
+    "range_mean": 1.0329,
+    "range_worst": 1.0595,
+    "lateral_mean": 0.0109,
+    "lateral_worst": 0.1147,
+    "height_mean": -0.0013,
+    "height_worst": -0.0098,
+    "bearing_mean_deg": 1.02,
+    "bearing_worst_deg": 3.262
+  },
+  "duration_s": 77.8,
+  "true_marker": {
+    "x": 0.0,
+    "y": 6.0,
+    "z": 0.0,
+    "yaw": -1.5707963267948963
+  }
+}

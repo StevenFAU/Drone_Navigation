@@ -1,0 +1,38 @@
+[INFO] [1794518618.971005263] [mission]: mission: 4 waypoints, then marker 0 at 1.0 m for 5.0 s
+[INFO] [1794518618.971238978] [mission]: waiting for MAVROS connection to ArduPilot...
+[INFO] [1794518619.722562557] [mission]: waiting for local position...
+[INFO] [1794518619.973530152] [mission]: waiting for mode GUIDED...
+[INFO] [1794518630.248079845] [mission]: armed
+[INFO] [1794518630.298799834] [mission]: waiting for altitude 2.0 m...
+[INFO] [1794518636.932550210] [mission]: waypoint 1/4: flying to (0.0, -3.0, 2.0), 2.9 m away
+[INFO] [1794518643.075143589] [mission]: waypoint 1 reached in 2.7 s, error 0.25 m; settled in 1.4 s; after 2 s hold: 0.06 m
+[INFO] [1794518644.582207646] [mission]: waypoint 2/4: flying to (-3.0, -3.0, 2.5), 3.0 m away
+[INFO] [1794518653.809550716] [mission]: waypoint 2 reached in 2.6 s, error 0.26 m; settled in 4.6 s; after 2 s hold: 0.08 m
+[INFO] [1794518655.315330866] [mission]: waypoint 3/4: flying to (-3.0, 0.0, 2.0), 3.0 m away
+[INFO] [1794518662.868241350] [mission]: waypoint 3 reached in 2.6 s, error 0.28 m; settled in 2.9 s; after 2 s hold: 0.03 m
+[INFO] [1794518664.472995144] [mission]: waypoint 4/4: flying to (1.0, 0.0, 1.5), 4.0 m away
+[INFO] [1794518674.127339763] [mission]: waypoint 4 reached in 2.9 s, error 0.25 m; settled in 4.7 s; after 2 s hold: 0.04 m
+[INFO] [1794518674.127496355] [mission]: waypoints done:
+[INFO] [1794518674.127623546] [mission]:   wp 1: (0.0, -3.0, 2.0)    2.7 s  arrival 0.25 m  hold 0.06 m
+[INFO] [1794518674.127743231] [mission]:   wp 2: (-3.0, -3.0, 2.5)    2.6 s  arrival 0.26 m  hold 0.08 m
+[INFO] [1794518674.127863143] [mission]:   wp 3: (-3.0, 0.0, 2.0)    2.6 s  arrival 0.28 m  hold 0.03 m
+[INFO] [1794518674.127977795] [mission]:   wp 4: (1.0, 0.0, 1.5)    2.9 s  arrival 0.25 m  hold 0.04 m
+[INFO] [1794518674.128198877] [mission]: searching: yawing at 20 deg/s
+[INFO] [1794518676.937179580] [mission]: marker found after turning 54 deg
+[INFO] [1794518676.937406594] [mission]: approaching: marker 6.14 m out, +1.49 m to the side, +0.21 m height diff, bearing +48 deg
+[INFO] [1794518676.937678706] [mission]:   range 6.14 m  lateral +1.49 m  height +0.21 m  bearing +47.8 deg
+[INFO] [1794518679.974942022] [mission]:   range 5.27 m  lateral +0.05 m  height +0.01 m  bearing +1.1 deg
+[INFO] [1794518683.004840633] [mission]:   range 3.69 m  lateral +0.30 m  height +0.00 m  bearing +0.5 deg
+[INFO] [1794518686.013301287] [mission]:   range 2.08 m  lateral +0.15 m  height +0.00 m  bearing -0.3 deg
+[INFO] [1794518687.719231995] [mission]: within 0.3 m: holding with position targets
+[INFO] [1794518688.824119548] [mission]: settled after 11.9 s; holding 5 s
+[INFO] [1794518693.871024303] [mission]: held 5 s at 1.00 m (settled after 11.9 s):
+[INFO] [1794518693.871298379] [mission]:   range   mean 1.013 m   worst 1.069 m
+[INFO] [1794518693.871542848] [mission]:   lateral mean +0.024 m   worst +0.093 m
+[INFO] [1794518693.871780729] [mission]:   height  mean -0.006 m   worst -0.015 m
+[INFO] [1794518693.872018625] [mission]:   bearing mean -0.10 deg worst -1.57 deg
+[INFO] [1794518693.922652593] [mission]: waiting for mode LAND...
+[INFO] [1794518693.922793171] [mission]: waiting for landing and disarm...
+[INFO] [1794518699.757659689] [mission]: landed and disarmed
+[INFO] [1794518699.757833812] [mission]: mission complete
+[INFO] [1794518699.858116960] [mission]: run log: results/experiment_main/run_07/mission_20261112_162350.csv / .json

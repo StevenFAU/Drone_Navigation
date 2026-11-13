@@ -1,0 +1,45 @@
+[INFO] [1794518722.520569052] [mission]: mission: 4 waypoints, then marker 0 at 1.0 m for 5.0 s
+[INFO] [1794518722.520823890] [mission]: waiting for MAVROS connection to ArduPilot...
+[INFO] [1794518723.271888367] [mission]: waiting for local position...
+[INFO] [1794518723.525616706] [mission]: waiting for mode GUIDED...
+[INFO] [1794518733.784603407] [mission]: armed
+[INFO] [1794518733.835302319] [mission]: waiting for altitude 2.0 m...
+[INFO] [1794518740.370648766] [mission]: waypoint 1/4: flying to (0.0, -3.0, 2.0), 3.2 m away
+[INFO] [1794518751.049377473] [mission]: waypoint 1 reached in 2.6 s, error 0.28 m; settled in 6.0 s; after 2 s hold: 0.08 m
+[INFO] [1794518752.653074543] [mission]: waypoint 2/4: flying to (-3.0, -3.0, 2.5), 3.1 m away
+[INFO] [1794518761.972287804] [mission]: waypoint 2 reached in 2.6 s, error 0.25 m; settled in 4.7 s; after 2 s hold: 0.09 m
+[INFO] [1794518763.576523396] [mission]: waypoint 3/4: flying to (-3.0, 0.0, 2.0), 3.0 m away
+[INFO] [1794518769.602727639] [mission]: waypoint 3 reached in 2.6 s, error 0.28 m; settled in 1.4 s; after 2 s hold: 0.06 m
+[INFO] [1794518771.208366006] [mission]: waypoint 4/4: flying to (1.0, 0.0, 1.5), 4.0 m away
+[INFO] [1794518781.244260387] [mission]: waypoint 4 reached in 3.0 s, error 0.28 m; settled in 5.0 s; after 2 s hold: 0.12 m
+[INFO] [1794518781.244427958] [mission]: waypoints done:
+[INFO] [1794518781.244557768] [mission]:   wp 1: (0.0, -3.0, 2.0)    2.6 s  arrival 0.28 m  hold 0.08 m
+[INFO] [1794518781.244676824] [mission]:   wp 2: (-3.0, -3.0, 2.5)    2.6 s  arrival 0.25 m  hold 0.09 m
+[INFO] [1794518781.244790405] [mission]:   wp 3: (-3.0, 0.0, 2.0)    2.6 s  arrival 0.28 m  hold 0.06 m
+[INFO] [1794518781.244910750] [mission]:   wp 4: (1.0, 0.0, 1.5)    3.0 s  arrival 0.28 m  hold 0.12 m
+[INFO] [1794518781.245126410] [mission]: searching: yawing at 20 deg/s
+[INFO] [1794518784.025858007] [mission]: marker found after turning 54 deg
+[INFO] [1794518784.026100317] [mission]: approaching: marker 5.85 m out, +2.40 m to the side, +0.17 m height diff, bearing +46 deg
+[INFO] [1794518784.026382437] [mission]:   range 5.85 m  lateral +2.40 m  height +0.17 m  bearing +46.5 deg
+[INFO] [1794518787.044165685] [mission]:   range 5.21 m  lateral +0.15 m  height +0.00 m  bearing +1.6 deg
+[INFO] [1794518790.071173587] [mission]:   range 3.77 m  lateral +0.09 m  height -0.00 m  bearing +0.1 deg
+[INFO] [1794518793.082090811] [mission]:   range 2.24 m  lateral +0.32 m  height +0.00 m  bearing +0.1 deg
+[INFO] [1794518795.118409867] [mission]: within 0.3 m: holding with position targets
+[INFO] [1794518796.121107253] [mission]:   range 1.06 m  lateral -0.04 m  height -0.01 m  bearing -1.3 deg
+[INFO] [1794518796.221644231] [mission]: settled after 12.2 s; holding 5 s
+[INFO] [1794518798.237494980] [mission]: left tolerance after 2.0 s; restarting hold (range 0.90 m, lateral -0.02 m, height +0.00 m, bearing +0.1 deg)
+[INFO] [1794518799.151650283] [mission]:   range 0.90 m  lateral +0.07 m  height -0.00 m  bearing +1.1 deg
+[INFO] [1794518801.391740547] [mission]: settled after 17.4 s; holding 5 s
+[INFO] [1794518804.606156627] [mission]: left tolerance after 3.2 s; restarting hold (range 1.11 m, lateral -0.04 m, height -0.01 m, bearing -0.2 deg)
+[INFO] [1794518804.606411855] [mission]:   range 1.11 m  lateral -0.04 m  height -0.01 m  bearing -0.2 deg
+[INFO] [1794518807.113334301] [mission]: settled after 23.1 s; holding 5 s
+[INFO] [1794518812.130905953] [mission]: held 5 s at 1.00 m (settled after 23.1 s):
+[INFO] [1794518812.131169343] [mission]:   range   mean 0.946 m   worst 1.037 m
+[INFO] [1794518812.131393376] [mission]:   lateral mean +0.028 m   worst +0.098 m
+[INFO] [1794518812.131613375] [mission]:   height  mean +0.001 m   worst -0.004 m
+[INFO] [1794518812.131835838] [mission]:   bearing mean -0.18 deg worst -2.09 deg
+[INFO] [1794518812.182392421] [mission]: waiting for mode LAND...
+[INFO] [1794518812.182540149] [mission]: waiting for landing and disarm...
+[INFO] [1794518817.307272279] [mission]: landed and disarmed
+[INFO] [1794518817.307441555] [mission]: mission complete
+[INFO] [1794518817.331700602] [mission]: run log: results/experiment_main/run_08/mission_20261112_162533.csv / .json

@@ -13,7 +13,7 @@ import time
 import cv2
 import numpy as np
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from sensor_msgs.msg import CameraInfo, Image
 
 # optical (x right, y down, z fwd) -> body FLU (x fwd, y left, z up)
@@ -24,10 +24,13 @@ R_BODY_CAM = np.array([[0.0, 0.0, 1.0],
 
 class MarkerTracker:
     def __init__(self, node, marker_id=0, marker_size=0.20, dictionary='DICT_4X4_50',
-                 cam_offset=(0.15, 0.0, -0.02), smoothing=0.3):
+                 cam_offset=(0.15, 0.0, -0.02), smoothing=0.3,
+                 image_topic='/camera/image', info_topic='/camera/camera_info', reliable=True):
         """node: a FlightNode (for .pose and .rotation()). cam_offset: camera position in body
         FLU, metres (sim: 15 cm ahead of the IMU, 2 cm below). smoothing: weight of each new
-        detection in the filtered estimate (0..1)."""
+        detection in the filtered estimate (0..1). The camera_info's distortion_model may be
+        plumb_bob/rational_polynomial (cv2.solvePnP handles it) or equidistant (fisheye, as
+        tools/calibrate_camera.py writes for the wide lens): corners are undistorted first."""
         self.node = node
         self.marker_id = marker_id
         self.cam_offset = np.array(cam_offset, float)
@@ -41,6 +44,7 @@ class MarkerTracker:
 
         self.K = None
         self.D = None
+        self.fisheye = False
         self.position = None      # filtered marker centre, ENU (np.array 3)
         self.normal = None        # filtered horizontal unit vector the marker faces, ENU (2)
         self.last_seen = 0.0      # time.time() of the last detection
@@ -48,10 +52,13 @@ class MarkerTracker:
         self.detections = 0
 
         group = MutuallyExclusiveCallbackGroup()   # image work doesn't block MAVROS callbacks
-        node.create_subscription(CameraInfo, '/camera/camera_info', self._on_info,
-                                 qos_profile_sensor_data, callback_group=group)
-        node.create_subscription(Image, '/camera/image', self._on_image,
-                                 qos_profile_sensor_data, callback_group=group)
+        # Reliable delivery: 2.7 MB frames over best-effort DDS lose fragments, which dropped the
+        # sim camera from 15 Hz to ~10 Hz with gaps over 1 s. Keep only the newest frame. Use
+        # reliable=False if a camera driver publishes best-effort only.
+        qos = (QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, history=HistoryPolicy.KEEP_LAST)
+               if reliable else qos_profile_sensor_data)
+        node.create_subscription(CameraInfo, info_topic, self._on_info, qos, callback_group=group)
+        node.create_subscription(Image, image_topic, self._on_image, qos, callback_group=group)
 
     # --- state ---
     def seen_within(self, seconds):
@@ -71,6 +78,7 @@ class MarkerTracker:
         if self.K is None:
             self.K = np.array(msg.k, float).reshape(3, 3)
             self.D = np.array(msg.d, float) if len(msg.d) else np.zeros(5)
+            self.fisheye = msg.distortion_model in ('equidistant', 'fisheye')
 
     def _on_image(self, msg):
         if self.K is None or self.node.pose is None:
@@ -85,10 +93,16 @@ class MarkerTracker:
         idx = [i for i, m in enumerate(ids) if self.marker_id < 0 or m == self.marker_id]
         if not idx:
             return
-        ok, rvec, tvec = cv2.solvePnP(self.obj_pts, corners[idx[0]][0], self.K, self.D,
+        img_pts = corners[idx[0]][0].astype(np.float64)
+        D = self.D
+        if self.fisheye:   # undistort with the fisheye model, then solve as an ideal pinhole
+            img_pts = cv2.fisheye.undistortPoints(img_pts.reshape(-1, 1, 2), self.K,
+                                                  self.D[:4], P=self.K).reshape(-1, 2)
+            D = np.zeros(5)
+        ok, rvec, tvec = cv2.solvePnP(self.obj_pts, img_pts, self.K, D,
                                       flags=cv2.SOLVEPNP_IPPE_SQUARE)
-        if not ok:
-            return
+        if not ok or not (np.all(np.isfinite(rvec)) and np.all(np.isfinite(tvec))):
+            return   # degenerate solve (seen at grazing angles far away); a NaN would poison the filter
 
         R_wb = np.array(self.node.rotation())
         t_cam = tvec.ravel()
@@ -96,7 +110,7 @@ class MarkerTracker:
         pos = self.camera_position() + R_wb @ (R_BODY_CAM @ t_cam)
         n = R_wb @ (R_BODY_CAM @ n_cam)
         n_h = np.array([n[0], n[1]])
-        if np.linalg.norm(n_h) < 1e-3:
+        if not np.all(np.isfinite(pos)) or not np.linalg.norm(n_h) > 1e-3:
             return
         n_h /= np.linalg.norm(n_h)
 
@@ -105,8 +119,11 @@ class MarkerTracker:
         else:
             a = self.alpha
             self.position = (1 - a) * self.position + a * pos
-            n_f = (1 - a) * self.normal + a * n_h
-            self.normal = n_f / np.linalg.norm(n_f)
+            # A planar square has two pose solutions that can swap far away; a facing direction
+            # more than 90 deg from the current estimate is that flip, so skip it.
+            if float(np.dot(n_h, self.normal)) > 0.0:
+                n_f = (1 - a) * self.normal + a * n_h
+                self.normal = n_f / np.linalg.norm(n_f)
         self.raw_range = float(np.linalg.norm(t_cam))
         self.last_seen = time.time()
         self.detections += 1

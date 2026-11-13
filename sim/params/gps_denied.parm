@@ -1,0 +1,21 @@
+# GPS-denied mode (start_sim.sh --gps-denied), like the T27 indoors: no GPS, the EKF uses a
+# downward optical-flow sensor for horizontal velocity and a downward rangefinder (the T27 has an
+# MTF-02P that does both), the barometer for height, and the compass for heading. Horizontal
+# position is dead-reckoned from flow velocity, so it drifts slowly.
+SIM_GPS_DISABLE 1
+SIM_FLOW_ENABLE 1
+FLOW_TYPE 10
+# Rangefinder: SITL's simulated analog sonar (computed from the drone's height). Type 100
+# ("SIM") gives "No Data" here because with Gazebo physics it expects ranges from Gazebo.
+RNGFND1_TYPE 1
+RNGFND1_PIN 0
+RNGFND1_SCALING 12.12
+RNGFND1_MIN_CM 0
+RNGFND1_MAX_CM 4000
+EK3_SRC1_POSXY 0
+EK3_SRC1_VELXY 5
+EK3_SRC1_VELZ 0
+EK3_SRC1_POSZ 1
+EK3_SRC1_YAW 1
+# Same arming checks as ArduPilot's own optical-flow SITL test (skips the GPS check).
+ARMING_CHECK 786390

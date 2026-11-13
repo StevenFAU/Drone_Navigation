@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Starts the whole sim in one terminal: Gazebo, ArduCopter SITL, MAVROS and the camera bridge.
+# Starts the whole sim in one terminal: Gazebo, ArduCopter SITL, MAVROS and the Gazebo-ROS bridge.
 #   scripts/start_sim.sh              # Gazebo with its window
 #   scripts/start_sim.sh --headless   # no Gazebo window (faster)
+#   scripts/start_sim.sh --noise      # GPS + barometer noise (sim/params/noise.parm)
+#   scripts/start_sim.sh --gps-denied # no GPS: optical flow + rangefinder, like the T27 indoors
 #   WORLD=iris_runway.sdf scripts/start_sim.sh   # another world (default: aruco_world.sdf)
 # Ctrl-C here, or closing the Gazebo window, stops them all.
 # Each program's output goes to logs/sim_*.log.
@@ -22,7 +24,16 @@ if [ -n "$LEFTOVER" ]; then
 fi
 
 GZ_ARG=""
-[ "$1" = "--headless" ] && GZ_ARG="--headless"
+# -w: wipe ArduPilot's saved parameters every start, so options don't carry over between runs.
+AP_ARGS=(--headless -w)
+for arg in "$@"; do
+  case "$arg" in
+    --headless)   GZ_ARG="--headless" ;;
+    --noise)      AP_ARGS+=(--add-param-file="$DIR/../sim/params/noise.parm") ;;
+    --gps-denied) AP_ARGS+=(--add-param-file="$DIR/../sim/params/gps_denied.parm") ;;
+    *) echo "unknown option: $arg (use --headless, --noise, --gps-denied)"; exit 2 ;;
+  esac
+done
 
 PGIDS=()
 start() {  # start <name> <command...>: run in its own process group so we can stop all of it
@@ -44,17 +55,17 @@ trap stop_all INT TERM EXIT
 
 start gazebo   "$DIR/sim_gazebo.sh" $GZ_ARG
 sleep 5
-start ardupilot "$DIR/sim_ardupilot.sh" --headless
+start ardupilot "$DIR/sim_ardupilot.sh" "${AP_ARGS[@]}"
 sleep 10
 start mavros   "$DIR/mavros.sh"
-start camera   "$DIR/camera_bridge.sh"
+start bridge   "$DIR/gz_bridge.sh"
 
 echo "waiting for MAVROS to connect to ArduPilot..."
 for _ in $(seq 1 90); do
   if grep -q "Got HEARTBEAT, connected" "$LOG/sim_mavros.log" 2>/dev/null; then
     echo
     echo "READY. In another terminal tab (in the drone_mission folder) run:"
-    echo "  source setup/env.sh && ros2 run drone_mission hello_flight"
+    echo "  source setup/env.sh && ros2 run drone_mission mission"
     echo
     echo "Leave this tab open. Ctrl-C here stops the sim."
     break

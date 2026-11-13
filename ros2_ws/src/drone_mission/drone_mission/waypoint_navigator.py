@@ -1,47 +1,46 @@
 """Fly an ordered list of waypoints, then land.
 
-GUIDED -> arm -> take off -> for each waypoint: stream position setpoints at 10 Hz until
-the drone is within `tolerance`, hold `hold_time` s, advance -> LAND.
+GUIDED -> arm -> take off -> for each waypoint: turn to face it, stream position setpoints at
+10 Hz until the drone is within `tolerance` (arrived), keep hovering until it has settled within
+`settle_tolerance` (ArduPilot overshoots a 3-4 m step by 10-20 cm and settles in 2-4 s), hold
+`waypoint_hold` s, advance -> LAND.
 
 Waypoints are (x, y, z) in metres, ENU axes (x = East, y = North, z = Up), with x and y
-measured from where the drone took off. (MAVROS's own local frame is anchored where
-ArduPilot first got a position fix, which stays put across flights in one sim session,
-so the node records the takeoff point and adds it on. z is height above the ground.) ROS 2 parameters can't hold a list of lists, so
-they're given as one flat list [x1, y1, z1, x2, y2, z2, ...]:
+measured from where the drone took off and z as height above the takeoff spot. ROS 2
+parameters can't hold a list of lists, so they're one flat list [x1, y1, z1, x2, y2, z2, ...]:
 
     ros2 run drone_mission waypoint_navigator
     ros2 run drone_mission waypoint_navigator --ros-args -p waypoints:="[5.0,0.0,2.0, 5.0,5.0,3.0]"
     ros2 run drone_mission waypoint_navigator --ros-args --params-file config/waypoints.yaml
 
-Each run writes a CSV of the drone's pose (10 Hz) and a per-waypoint summary to logs/.
+Each run writes logs/waypoints_<time>.csv (10 Hz pose, estimate + Gazebo truth) and .json
+(per-waypoint leg time and errors).
 """
-import csv
 import math
-import os
-import threading
 import time
-from datetime import datetime
 
 from .flight_base import FlightNode, MissionError, run_node
 
 MIN_ALTITUDE = 1.0   # m; refuse waypoints lower than this
+DEFAULT_SQUARE = [4.0, 0.0, 2.0, 4.0, 4.0, 3.0, 0.0, 4.0, 3.0, 0.0, 0.0, 2.0]
 
 
 class WaypointNavigator(FlightNode):
-    def __init__(self):
-        super().__init__('waypoint_navigator')
-        # Default: a 4 m square at 2-3 m altitude, ending back over the start.
-        flat = self.declare_parameter(
-            'waypoints', [4.0, 0.0, 2.0,  4.0, 4.0, 3.0,  0.0, 4.0, 3.0,  0.0, 0.0, 2.0]).value
-        self.tolerance = self.declare_parameter('tolerance', 0.3).value          # m, 3D
-        self.hold_time = self.declare_parameter('hold_time', 2.0).value          # s at each waypoint
-        self.takeoff_altitude = self.declare_parameter('takeoff_altitude', 2.0).value
+    def __init__(self, name='waypoint_navigator'):
+        super().__init__(name)
+        self.setup_waypoints(DEFAULT_SQUARE)
+
+    def setup_waypoints(self, default_waypoints):
+        flat = self.param('waypoints', default_waypoints)
+        self.tolerance = self.param('tolerance', 0.3)               # m, 3D
+        self.waypoint_hold = self.param('waypoint_hold', 2.0)       # s at each waypoint
+        self.settle_tolerance = self.param('settle_tolerance', 0.10)  # m, before the hold counts
+        self.settle_timeout = self.param('settle_timeout', 10.0)      # s; hold anyway after this
+        self.takeoff_altitude = self.param('takeoff_altitude', 2.0)
         # Turn to face the next waypoint before flying to it (the real drone's camera looks
         # forward, so this keeps it pointed where it's going).
-        self.face_travel = self.declare_parameter('face_travel', True).value
-        self.leg_speed = self.declare_parameter('min_expected_speed', 0.5).value  # m/s, for leg timeouts
-        log_dir = self.declare_parameter('log_dir', '').value
-        self.log_dir = log_dir or os.path.join(os.environ.get('DRONE_MISSION_ROOT', '.'), 'logs')
+        self.face_travel = self.param('face_travel', True)
+        self.leg_speed = self.param('min_expected_speed', 0.5)      # m/s, for leg timeouts
 
         if len(flat) == 0 or len(flat) % 3 != 0:
             raise MissionError(f'waypoints needs x,y,z triples; got {len(flat)} numbers')
@@ -50,34 +49,7 @@ class WaypointNavigator(FlightNode):
             if z < MIN_ALTITUDE:
                 raise MissionError(f'waypoint {i} altitude {z} m is below {MIN_ALTITUDE} m')
 
-        self.origin = (0.0, 0.0, 0.0)   # local-frame position at arming; set in mission()
-        self.current_wp = 0          # 0 = not flying a leg yet (index is 1-based in logs)
-        self._logging = False
-
-    # --- pose log for the experiment / plots ---
-    def _log_loop(self, path):
-        with open(path, 'w', newline='') as f:
-            w = csv.writer(f)
-            # x, y, z relative to the takeoff point (same frame as the waypoints)
-            w.writerow(['t', 'x', 'y', 'z', 'yaw', 'waypoint', 'mode', 'armed'])
-            t0 = time.time()
-            while self._logging:
-                if self.pose is not None:
-                    x, y, z = self.to_mission(*self.position)
-                    w.writerow([f'{time.time() - t0:.2f}', f'{x:.3f}', f'{y:.3f}', f'{z:.3f}',
-                                f'{self.yaw:.3f}', self.current_wp, self.state.mode,
-                                int(self.state.armed)])
-                time.sleep(0.1)
-
-    def to_local(self, x, y, z):
-        ox, oy, oz = self.origin
-        return x + ox, y + oy, z + oz
-
-    def to_mission(self, x, y, z):
-        ox, oy, oz = self.origin
-        return x - ox, y - oy, z - oz
-
-    def hold(self, x, y, z, yaw, seconds):
+    def hold_position(self, x, y, z, yaw, seconds):
         end = time.time() + seconds
         while time.time() < end:
             self.send_setpoint(x, y, z, yaw)
@@ -88,7 +60,7 @@ class WaypointNavigator(FlightNode):
         deadline = time.time() + 15.0 * self.timeout_scale
         while abs(math.remainder(yaw - self.yaw, 2 * math.pi)) > math.radians(10):
             if time.time() > deadline:
-                self.get_logger().warn('yaw did not settle; flying anyway')
+                self.get_logger().warning('yaw did not settle; flying anyway')
                 return
             self.send_setpoint(x, y, z, yaw)
             time.sleep(0.1)
@@ -117,50 +89,55 @@ class WaypointNavigator(FlightNode):
         arrival_err = self.distance_to(x, y, z)
         leg_time = time.time() - start
 
-        self.hold(x, y, z, yaw, self.hold_time)
+        # Settled = inside settle_tolerance for 1 s straight (passing through the waypoint on the
+        # way to an overshoot doesn't count).
+        settle_start = time.time()
+        settle_end = settle_start + self.settle_timeout * self.timeout_scale
+        inside_since = None
+        while time.time() < settle_end:
+            if self.distance_to(x, y, z) <= self.settle_tolerance:
+                inside_since = inside_since or time.time()
+                if time.time() - inside_since >= 1.0:
+                    break
+            else:
+                inside_since = None
+            self.send_setpoint(x, y, z, yaw)
+            time.sleep(0.1)
+        settle_time = time.time() - settle_start
+        self.hold_position(x, y, z, yaw, self.waypoint_hold)
         hold_err = self.distance_to(x, y, z)
-        log.info(f'waypoint {index} reached in {leg_time:.1f} s, error {arrival_err:.2f} m '
-                 f'(after {self.hold_time:.0f} s hold: {hold_err:.2f} m)')
+        log.info(f'waypoint {index} reached in {leg_time:.1f} s, error {arrival_err:.2f} m; '
+                 f'settled in {settle_time:.1f} s; after {self.waypoint_hold:.0f} s hold: {hold_err:.2f} m')
         return {'waypoint': index, 'x': wx, 'y': wy, 'z': wz, 'leg_time_s': round(leg_time, 2),
-                'arrival_error_m': round(arrival_err, 3), 'hold_error_m': round(hold_err, 3)}
+                'arrival_error_m': round(arrival_err, 3), 'settle_time_s': round(settle_time, 2),
+                'hold_error_m': round(hold_err, 3),
+                'hold_s': self.waypoint_hold,
+                't_end': round(time.time() - self.rec_t0, 2)}   # run-log time
 
-    def mission(self):
+    def fly_waypoints(self):
+        self.phase = 'waypoints'
+        results = []
+        self.summary['waypoints'] = results
+        for i, (x, y, z) in enumerate(self.waypoints, 1):
+            self.waypoint_index = i
+            results.append(self.fly_to(i, x, y, z))
+        self.waypoint_index = 0
         log = self.get_logger()
-        log.info(f'{len(self.waypoints)} waypoints, tolerance {self.tolerance} m, '
-                 f'hold {self.hold_time} s')
-        self.connect_and_arm()
-        # Ground level at the takeoff spot is the mission origin (see module docstring).
-        self.origin = self.position
-
-        os.makedirs(self.log_dir, exist_ok=True)
-        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        pose_csv = os.path.join(self.log_dir, f'waypoints_{stamp}_pose.csv')
-        summary_csv = os.path.join(self.log_dir, f'waypoints_{stamp}_summary.csv')
-        self._logging = True
-        logger = threading.Thread(target=self._log_loop, args=(pose_csv,), daemon=True)
-        logger.start()
-        try:
-            self.takeoff(self.takeoff_altitude)
-            results = []
-            for i, (x, y, z) in enumerate(self.waypoints, 1):
-                self.current_wp = i
-                results.append(self.fly_to(i, x, y, z))
-            self.current_wp = 0
-            self.land()
-        finally:
-            self._logging = False
-            logger.join(timeout=1.0)
-
-        with open(summary_csv, 'w', newline='') as f:
-            w = csv.DictWriter(f, fieldnames=list(results[0].keys()))
-            w.writeheader()
-            w.writerows(results)
-        log.info('mission complete:')
+        log.info('waypoints done:')
         for r in results:
             log.info(f"  wp {r['waypoint']}: ({r['x']:.1f}, {r['y']:.1f}, {r['z']:.1f})  "
                      f"{r['leg_time_s']:5.1f} s  arrival {r['arrival_error_m']:.2f} m  "
                      f"hold {r['hold_error_m']:.2f} m")
-        log.info(f'logs: {pose_csv}, {summary_csv}')
+        return results
+
+    def mission(self):
+        self.get_logger().info(f'{len(self.waypoints)} waypoints, tolerance {self.tolerance} m, '
+                               f'hold {self.waypoint_hold} s')
+        self.connect_and_arm()
+        self.start_recording('waypoints')
+        self.takeoff(self.takeoff_altitude)
+        self.fly_waypoints()
+        self.land()
 
 
 def main():
