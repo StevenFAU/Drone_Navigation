@@ -106,6 +106,11 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
   falls back to the old API. Test drone-side code in the `mission` container (it mounts the package;
   dn_mavros has the image's build-time copy).
 - MAV_CMD_SET_EKF_SOURCE_SET (42007) switches EKF sources without arming; not persistent.
+- Drone containers must all run as root: Fast DDS shared-memory segments in /dev/shm are owned by
+  their creator, so a non-root container hangs waiting for camera frames. The entrypoint chowns
+  /logs to LOGS_OWNER (1000:1000) when a `mission` run ends instead.
+- Calibration photos come from the ROS stream (`python3 -m drone_mission.grab_frames`), not
+  rpicam-still: dn_camera holds the camera. Print files: robot/print/ (print at 100%).
 
 ## Status (project plan)
 

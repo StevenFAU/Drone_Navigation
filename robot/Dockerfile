@@ -30,13 +30,16 @@ RUN git clone --depth 1 https://github.com/raspberrypi/libcamera.git /opt/src/li
 
 # camera_ros (ROS 2 node for libcamera) + drone_mission
 WORKDIR /ws
-RUN git clone --depth 1 https://github.com/christianrauch/camera_ros.git src/camera_ros
-COPY ros2_ws/src/drone_mission src/drone_mission
-RUN . /opt/ros/jazzy/setup.sh \
+RUN git clone --depth 1 https://github.com/christianrauch/camera_ros.git src/camera_ros \
+    && . /opt/ros/jazzy/setup.sh \
     && apt-get update \
     && (rosdep update --rosdistro jazzy || true) \
     && rosdep install --from-paths src --ignore-src -y --skip-keys=libcamera \
-    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/lib/apt/lists/*
+# drone_mission's dependencies are all installed above, so a code change only re-runs this step
+# (and the package is mounted at run time anyway; see docker-compose.yml)
+COPY ros2_ws/src/drone_mission src/drone_mission
+RUN . /opt/ros/jazzy/setup.sh \
     && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release \
     && rm -rf log
 

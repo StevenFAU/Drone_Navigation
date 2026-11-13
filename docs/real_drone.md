@@ -96,13 +96,15 @@ Node and config changes need only a sync (the containers mount the package). Cha
 - Check on the radio which switch positions give LOITER / ALT_HOLD / STABILIZE (ch 7) and
   which EKF source set (ch 6: indoors = set 2 or 3, never 1).
 - Netted/clear area, nobody in front of the drone, props off for every bench step.
-- Fit the fan before long sessions.
+- Optical flow needs texture under the drone. The lab floor is smooth light-grey concrete that
+  reflects the ceiling lights: lay a textured mat, rug or crossing strips of tape along the
+  flight path, and check LOITER drift over it in stage 1.
 
 ## Test stages (each one must pass before the next)
 
 | Stage | What | Pass when |
 | --- | --- | --- |
-| 0. Bench, props off | `./install.sh` done; `/mavros/state` connected; camera at 1280x720. **Calibrate** (print a chessboard, `tools/calibrate_camera.py`, copy the YAML to `robot/config/camera.yaml`). Measure `camera_offset`. Photos of the printed marker at 1, 2, 3 m with `--test` | range within ~3 cm at 1 m and ~5% at 3 m |
+| 0. Bench, props off | Done 2026-11-13: `./install.sh`, MAVROS connected, camera at 1280x720 / 15 Hz. To do: **calibrate** (print `robot/print/*.pdf` at 100%, steps at the top of `tools/calibrate_camera.py`, photos via `drone_mission.grab_frames`), measure `camera_offset`, marker photos at 1, 2, 3 m with `--test` | range within ~3 cm at 1 m and ~5% at 3 m |
 | 1. Manual hover | Pilot flies LOITER with source set 2; watch `ros2 topic echo /mavros/local_position/pose` while hovering 60 s | drift under ~0.5 m, no EKF warnings |
 | 2. First GUIDED | `docker compose run --rm mission ros2 run drone_mission hello_flight --ros-args -p altitude:=1.0 -p target_x:=1.0 -p ekf_source_set:=2 -p heading_frame:=true` (1 m forward) | takes off, moves 1 m, lands; pilot takeover tested once |
 | 3. Marker only | marker 3 m ahead at 1.2 m: `... marker_approach --ros-args --params-file /ws/src/drone_mission/config/mission_indoor.yaml -p target_range:=1.5`, then `1.0` | holds 5 s, lands |

@@ -4,4 +4,15 @@
 source /opt/ros/jazzy/setup.bash
 source /ws/install/setup.bash
 export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-27}
-exec "$@"
+if [ -z "$LOGS_OWNER" ]; then
+    exec "$@"
+fi
+# Containers run as root (DDS shared memory between them needs one user), so hand anything
+# written to /logs back to the Pi user when the command ends, Ctrl-C included.
+trap 'chown -R "$LOGS_OWNER" /logs 2>/dev/null' EXIT
+"$@" &
+child=$!
+trap 'kill -INT $child 2>/dev/null' INT TERM
+wait $child; rc=$?
+wait $child 2>/dev/null
+exit $rc

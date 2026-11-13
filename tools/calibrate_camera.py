@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Calibrate the real camera (Pi Camera 3 Wide) from chessboard photos, and check marker range.
 
-1. Print a chessboard (default 9x6 inner corners), measure one square with calipers, and tape it
-   flat to something rigid.
-2. On the Pi, take ~25 photos at the SAME resolution the mission will use (the sim uses
-   1280x720). Move the board around the whole image, especially the corners and edges where the
-   wide lens bends most, and tilt it up to ~45 deg:
-       rpicam-still --width 1280 --height 720 --timelapse 2000 -t 60000 -o calib_%03d.jpg
-3. Calibrate (copy the photos to the laptop first if you like):
-       python3 tools/calibrate_camera.py calib_photos/ --square 0.025
+1. Print robot/print/chessboard_9x6_25mm_letter.pdf at 100% ("actual size", not "fit to page"),
+   check the 100 mm scale bar and one square (25 mm) with a ruler, and tape it flat to something
+   rigid (cardboard bends: use a clipboard, foam board or a cabinet door).
+2. On the Pi, take ~25 photos from the camera stream the mission uses (1280x720, focus locked).
+   Move the board around the whole image, especially the corners and edges where the wide lens
+   bends most, at 0.4-1.5 m, and tilt it up to ~45 deg:
+       cd ~/Drone_Navigation/robot
+       docker compose run --rm mission python3 -m drone_mission.grab_frames --out /logs/calib --count 25 --every 2
+3. Copy them to the laptop and calibrate:
+       scp -r group7@10.43.0.42:Drone_Navigation/logs/calib calib_photos
+       python3 tools/calibrate_camera.py calib_photos/ --square 0.025 --show
+   then copy camera.yaml to robot/config/camera.yaml, scripts/drone_sync.sh, and on the Pi
+   `docker compose restart camera`.
    It fits both the standard pinhole model (OpenCV "rational", 8 coefficients) and the fisheye
    model, prints the reprojection error (RMS, pixels) of each, and writes the better one as a
    ROS camera_info YAML (camera.yaml). The marker tracker handles both. Under ~0.5 px is good.
-4. Check range against a tape measure: photograph the printed 0.20 m marker from 1.00 m (and
-   2-3 m), then
+4. Check range against a tape measure: print robot/print/aruco_4x4_id0_200mm_letter.pdf at
+   100%, stand it 1.00 m (then 2 and 3 m) from the camera lens, grab one frame each
+   (`... grab_frames --out /logs/marker_1m --count 1`), copy it over, then
        python3 tools/calibrate_camera.py --test camera.yaml marker_1m.jpg --marker-size 0.20
 """
 import argparse

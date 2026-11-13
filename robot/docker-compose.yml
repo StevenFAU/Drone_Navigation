@@ -54,6 +54,10 @@ services:
     <<: *ros
     container_name: dn_mission
     profiles: ["fly"]          # never started by `up`; only by `docker compose run --rm mission`
+    environment:
+      - ROS_DOMAIN_ID=27
+      - LOGS_OWNER=1000:1000   # entrypoint gives /logs back to the Pi's group7 user afterwards
+                               # (running as non-root instead breaks DDS shared memory)
     command: >
       ros2 run drone_mission mission --ros-args
       --params-file /ws/src/drone_mission/config/mission_indoor.yaml
