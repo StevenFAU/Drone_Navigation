@@ -125,8 +125,13 @@ def read_yaml(path):
 def test_marker(calib, image, size_m, dictionary):
     model, K, D = read_yaml(calib)
     gray = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
-    det = cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(getattr(cv2.aruco, dictionary)))
-    corners, ids, _ = det.detectMarkers(gray)
+    aruco = cv2.aruco
+    if hasattr(aruco, 'ArucoDetector'):          # OpenCV >= 4.7
+        det = aruco.ArucoDetector(aruco.getPredefinedDictionary(getattr(aruco, dictionary)))
+        corners, ids, _ = det.detectMarkers(gray)
+    else:                                         # OpenCV 4.6 (the drone's Jazzy container)
+        corners, ids, _ = aruco.detectMarkers(gray, aruco.Dictionary_get(getattr(aruco, dictionary)),
+                                              parameters=aruco.DetectorParameters_create())
     if ids is None:
         sys.exit('no marker found in the image')
     s = size_m / 2

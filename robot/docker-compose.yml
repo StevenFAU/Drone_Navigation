@@ -15,6 +15,7 @@ x-ros: &ros
     - ./config:/config
     - ../ros2_ws/src/drone_mission:/ws/src/drone_mission   # edit nodes on the Pi without a rebuild
     - ../logs:/logs
+    - ../tools:/tools:ro                                    # calibrate_camera.py etc.
 
 services:
   mavros:
