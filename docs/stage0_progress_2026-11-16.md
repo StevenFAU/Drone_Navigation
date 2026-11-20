@@ -43,9 +43,9 @@ drone, all three distances passed.
    Arm switch (ch 5) works: the drone armed twice during the check (props off), 18:13-18:15.
    **Sticks OK** (18:17, `tools/bench/stick_check_voice.py`): right stick forward -> ch2 1998,
    right -> ch1 2005, left up -> ch3 2004, left right -> ch4 2012 (all as expected with `RC2_REVERSED 1`).
-   **Radio loss, disarmed:** the receiver's overrides stop within ~2 s of the radio going off, but the FC
-   sent no failsafe text while disarmed. Still to prove: radio off **while armed** (props off) -> FC
-   disarms / reports radio failsafe.
+   **Radio loss: PASS** (18:21, props off, `tools/bench/failsafe_check_voice.py`): armed with the switch
+   in ALT_HOLD, radio off -> receiver data stopped, FC **disarmed 0.8 s later** (landed failsafe action;
+   in flight `FS_THR_ENABLE 3` = LAND). The FC sent no status text for it, so watch the disarm, not messages.
 4. Optional: refine camera_offset `up` by measuring lens-centre and FC-board heights above the table.
 5. **Floor.** Textured mat / tape over ~2.5 x 2.5 m plus the path to the marker.
 6. ~~Commit~~ done 2026-11-20: this folder is now a git checkout (branch `stage0-bench`).

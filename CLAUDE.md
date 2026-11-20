@@ -129,5 +129,6 @@ Next: camera calibration + camera_offset measurement (stage 0), then staged flig
 
 2026-11-16 (stage 0, partly done): camera calibrated (rational, RMS 0.18 px) and installed,
 marker range passed at 1/2/3 m; camera_offset measured 2026-11-20 ([0.14, 0, 0]). 2026-11-20: offset synced,
-radio re-paired and switch check passed. Left: floor mat, RC-loss failsafe check, then stage 1. Details and next steps: docs/stage0_progress_2026-11-16.md; voice-cued bench
+radio re-paired, switch, stick and radio-loss (disarms in 0.8 s) checks passed. Left: floor mat,
+then stage 1 (manual LOITER hover). Details and next steps: docs/stage0_progress_2026-11-16.md; voice-cued bench
 helpers in tools/bench/.
