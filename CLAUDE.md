@@ -123,3 +123,8 @@ Phase 2 (real T27) set up 2026-11-13: drone surveyed, flight-controller params c
 (table + backups in docs/real_drone.md, robot/backup/), ROS 2 Jazzy Docker stack in robot/,
 indoor mission config (heading_frame, ekf_source_set 2) tested 2/2 in the GPS-denied sim.
 Next: camera calibration + camera_offset measurement (stage 0), then staged flights.
+
+2026-11-16 (stage 0, partly done): camera calibrated (rational, RMS 0.18 px) and installed,
+marker range passed at 1/2/3 m; camera_offset measured 2026-11-20 ([0.14, 0, 0]). Left: radio
+switch check (props off), floor mat, sync the offset to the Pi. Details and next steps: docs/stage0_progress_2026-11-16.md; voice-cued bench
+helpers in tools/bench/.

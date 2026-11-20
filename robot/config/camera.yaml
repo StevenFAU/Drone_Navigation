@@ -1,18 +1,15 @@
-# PLACEHOLDER, NOT A CALIBRATION. Nominal Pi Camera 3 Wide at 1280x720 (~102 deg horizontal
-# field of view, distortion ignored), so ranges will be off by several percent, worse towards the
-# image edges. Replace with the output of tools/calibrate_camera.py (docs/real_drone.md, stage 0).
 image_width: 1280
 image_height: 720
-camera_name: camera
+camera_name: pi_camera_3_wide
 camera_matrix:
   rows: 3
   cols: 3
-  data: [518.0, 0.0, 640.0, 0.0, 518.0, 360.0, 0.0, 0.0, 1.0]
-distortion_model: plumb_bob
+  data: [824.441613, 0.000000, 646.010158, 0.000000, 818.741104, 374.587241, 0.000000, 0.000000, 1.000000]
+distortion_model: rational_polynomial
 distortion_coefficients:
   rows: 1
-  cols: 5
-  data: [0.0, 0.0, 0.0, 0.0, 0.0]
+  cols: 8
+  data: [6.65958990, 12.64368760, 0.00580352, 0.00104460, -46.24658162, 6.72814048, 12.84206718, -46.79418405]
 rectification_matrix:
   rows: 3
   cols: 3
@@ -20,4 +17,4 @@ rectification_matrix:
 projection_matrix:
   rows: 3
   cols: 4
-  data: [518.0, 0.0, 640.0, 0.0, 0.0, 518.0, 360.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+  data: [824.441613, 0.000000, 646.010158, 0.000000, 0.000000, 818.741104, 374.587241, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000]

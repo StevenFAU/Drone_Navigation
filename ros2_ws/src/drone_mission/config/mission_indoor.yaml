@@ -46,11 +46,13 @@
     approach_timeout: 150.0
     lost_timeout: 8.0
 
-    # Real camera (camera_ros on the Pi). MEASURE camera_offset on the drone: metres
-    # forward, left, up from the flight controller to the camera lens.
+    # Real camera (camera_ros on the Pi). camera_offset: metres forward, left, up from the
+    # flight controller's centre (INS_POS* = 0) to the camera lens. Measured 2026-11-20 from
+    # tape photos: forward 0.134 m to the camera board + ~5 mm to the lens, left ~0.003 m;
+    # up estimated (lens and FC both ~2 cm above the bottom plate), +-0.015 m.
     image_topic: /camera/image_raw
     camera_info_topic: /camera/camera_info
-    camera_offset: [0.15, 0.0, -0.02]
+    camera_offset: [0.14, 0.0, 0.0]
     image_reliable: true
 
     timeout_scale: 1.5
