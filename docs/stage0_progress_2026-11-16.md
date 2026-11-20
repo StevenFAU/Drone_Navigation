@@ -40,8 +40,12 @@ drone, all three distances passed.
    MAVLink 460800 (was AirPort 9600), `SERIAL1_OPTIONS` 8 -> 0. Details in `docs/real_drone.md`, "Radio link".
 3. ~~Radio switches~~ **done 2026-11-20**: ch 6 low/mid/high = EKF set 1 GPS / 2 / 3; ch 7 low/mid/high =
    LOITER / ALT_HOLD / STABILIZE. Arm switch (ch 5) not touched.
-   Still to check on the bench: RC-loss failsafe (radio off while disarmed -> failsafe message) and
-   stick directions (pitch is reversed in the FC, `RC2_REVERSED 1`).
+   Arm switch (ch 5) works: the drone armed twice during the check (props off), 18:13-18:15.
+   **Sticks OK** (18:17, `tools/bench/stick_check_voice.py`): right stick forward -> ch2 1998,
+   right -> ch1 2005, left up -> ch3 2004, left right -> ch4 2012 (all as expected with `RC2_REVERSED 1`).
+   **Radio loss, disarmed:** the receiver's overrides stop within ~2 s of the radio going off, but the FC
+   sent no failsafe text while disarmed. Still to prove: radio off **while armed** (props off) -> FC
+   disarms / reports radio failsafe.
 4. Optional: refine camera_offset `up` by measuring lens-centre and FC-board heights above the table.
 5. **Floor.** Textured mat / tape over ~2.5 x 2.5 m plus the path to the marker.
 6. ~~Commit~~ done 2026-11-20: this folder is now a git checkout (branch `stage0-bench`).
