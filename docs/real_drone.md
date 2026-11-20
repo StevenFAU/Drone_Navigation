@@ -14,7 +14,7 @@ camera driver and calibration, and safety. This is the bring-up plan, smallest r
 | Flow + range | Mico Air MTF-02P (`FLOW_TYPE 5`, `RNGFND1_TYPE 10`) | rangefinder limit `RNGFND1_MAX_CM 200`: **stay under ~1.8 m indoors** |
 | GPS / compass | HGLRC M100 Pro on a mast | 0 satellites indoors |
 | EKF sources | set 1: GPS. Set 2: flow velocity + rangefinder height. Set 3: same as set 2 | chosen by the **RC channel 6 switch** (`RC6_OPTION 90`), or by the mission (`ekf_source_set`) |
-| RC | Radiomaster Pocket, ELRS. Ch 5 = arm switch, ch 6 = EKF source set, ch 7 = flight mode | mode slots: LOITER / ALT_HOLD / STABILIZE |
+| RC | Radiomaster Pocket (ELRS 3.5.6, Link Mode MAVLink) -> SpeedyBee Nano 2.4 GHz RX (ELRS 3.5.1) on **TELEM1 = SERIAL1**, MAVLink at 460800 | ch 5 = arm, ch 6 = EKF source set (1000 = set 1 GPS, 1500 = set 2, 2000 = set 3), ch 7 = mode (1000 = LOITER, 1500 = ALT_HOLD, 2000 = STABILIZE). See "Radio link" below |
 | Battery | 4S, 3300 mAh | low 13.97 V -> LAND, critical 13.71 V |
 
 With source set 2 selected on the bench, the EKF gives a local position at 50 Hz (checked;
@@ -34,6 +34,26 @@ All 1275 original parameters are in `robot/backup/t27_params_original.parm` (and
 | `FS_GCS_ENABLE` | 0 | 5 (LAND) | if the Pi/MAVROS dies mid-mission, land. `FS_OPTIONS 16` (already set) lets a pilot flying manually continue |
 | `FENCE_ALT_MAX` | 30.5 m | 2.5 m | indoor ceiling; **raise it before flying outdoors** |
 | `WPNAV_SPEED` / `_UP` / `_DN` | 1000 / 250 / 150 cm/s | 100 / 100 / 75 | slow first autonomous flights |
+| `SERIAL1_OPTIONS` | 8 (swap TX/RX) | 0 | 2026-11-20: with the swap the FC heard nothing from the ELRS receiver on TELEM1 |
+
+### Radio link (set up 2026-11-20)
+
+The T27 team's radio wasn't available, so the receiver was re-paired to our Radiomaster Pocket.
+The receiver (SpeedyBee Nano 2.4 GHz, web UI at 10.0.0.1 via its Wi-Fi `ExpressLRS RX` /
+`expresslrs`, opened from the radio: ExpressLRS > WiFi Connectivity > Enable Rx WiFi) was in
+**AirPort mode at 9600 baud**, which carries no RC at all. Changed to: AirPort off, UART baud
+460800, Serial Protocol MAVLINK (originals saved in `logs/elrs_rx/config.json` on the laptop).
+The radio's ExpressLRS Link Mode is MAVLink.
+
+In MAVLink mode the receiver sends RC as `RC_CHANNELS_OVERRIDE` from system 255 (`SYSID_MYGCS
+255`, `RC_OVERRIDE_TIME 3`). ArduPilot reports those with `chancount 0`, so **`/mavros/rc/in` stays
+empty**; read the switches from `/uas1/mavlink_source` instead (`tools/bench/rc_raw.py`,
+`tools/bench/rc_watch.py`). The mission nodes detect pilot takeover from the flight mode, so they
+don't need `/mavros/rc/in`.
+
+Switch check (props off): ch 6 low/mid/high -> EKF set 1 (GPS) / 2 / 3; ch 7 low/mid/high ->
+LOITER / ALT_HOLD / STABILIZE (modes confirmed in `/mavros/state`). Following "up first", the
+up position read high (2000) on both switches. **Indoors keep ch 6 away from set 1.**
 
 ## Software on the Pi (ROS 2 Jazzy in Docker)
 

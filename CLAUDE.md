@@ -109,6 +109,9 @@ OFFBOARD). The original proposal said PX4; that was changed on purpose.
 - Drone containers must all run as root: Fast DDS shared-memory segments in /dev/shm are owned by
   their creator, so a non-root container hangs waiting for camera frames. The entrypoint chowns
   /logs to LOGS_OWNER (1000:1000) when a `mission` run ends instead.
+- The drone's ELRS receiver runs in MAVLink mode on TELEM1 (SERIAL1, 460800): RC arrives as
+  RC_CHANNELS_OVERRIDE from sysid 255, so `/mavros/rc/in` is empty; read `/uas1/mavlink_source`
+  (tools/bench/rc_raw.py). `SERIAL1_OPTIONS` had to be 0 (not 8/swap). Details: docs/real_drone.md.
 - Calibration photos come from the ROS stream (`python3 -m drone_mission.grab_frames`), not
   rpicam-still: dn_camera holds the camera. Print files: robot/print/ (print at 100%).
 
@@ -125,6 +128,6 @@ indoor mission config (heading_frame, ekf_source_set 2) tested 2/2 in the GPS-de
 Next: camera calibration + camera_offset measurement (stage 0), then staged flights.
 
 2026-11-16 (stage 0, partly done): camera calibrated (rational, RMS 0.18 px) and installed,
-marker range passed at 1/2/3 m; camera_offset measured 2026-11-20 ([0.14, 0, 0]). Left: radio
-switch check (props off), floor mat, sync the offset to the Pi. Details and next steps: docs/stage0_progress_2026-11-16.md; voice-cued bench
+marker range passed at 1/2/3 m; camera_offset measured 2026-11-20 ([0.14, 0, 0]). 2026-11-20: offset synced,
+radio re-paired and switch check passed. Left: floor mat, RC-loss failsafe check, then stage 1. Details and next steps: docs/stage0_progress_2026-11-16.md; voice-cued bench
 helpers in tools/bench/.

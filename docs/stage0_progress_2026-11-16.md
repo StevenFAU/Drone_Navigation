@@ -36,21 +36,12 @@ drone, all three distances passed.
 
 1. **Props off.** In today's photos all four props were still on. Remove them before the radio check
    (channel 5 is the arm switch).
-2. **Radio pairing (blocker, 2026-11-20).** A Radiomaster Pocket (probably not the T27 team's own)
-   would not pair with the drone's ELRS receiver: FC sends RC_CHANNELS with 0 channels, receiver LED
-   blinking, Bind from the radio did nothing. The receiver is most likely locked to the T27 team's
-   radio by a binding phrase. Fix: use the T27 team's radio, or get their binding phrase. Any radio
-   used must also send arm on ch5 and 3-position switches on ch6 (EKF set) and ch7 (mode).
-   Camera_offset was synced to the Pi on 2026-11-20 (Pi ran at 60 °C that day, top plate off).
-3. **Radio switches** (after pairing). Radio on, then flip one switch at a time; the laptop announces which channel
-   and what it does:
-   `python3 -I tools/bench/rc_watch_voice.py` (first `scp tools/bench/rc_watch.py group7@10.43.0.42:Drone_Navigation/logs/`).
-   Record which physical switch/position gives which value. Expected from the FC parameters:
-   - ch5 = arm/disarm (`RC5_OPTION 154`)
-   - ch6 = EKF source set (`RC6_OPTION 90`): low = set 1 GPS, mid = set 2 flow, high = set 3 flow. **Indoors never set 1.**
-   - ch7 = flight mode (`FLTMODE_CH 7`): FLTMODE1/2 = LOITER, 3 = STABILIZE, 4 = ALT_HOLD, 5/6 = STABILIZE.
-     A 3-position switch (1000/1500/2000) should give LOITER / ALT_HOLD / STABILIZE.
-     LOITER may be refused while ch6 is on set 1 (no position indoors); try with set 2.
+2. ~~Radio pairing~~ **done 2026-11-20**: receiver re-paired to our Radiomaster Pocket, set to
+   MAVLink 460800 (was AirPort 9600), `SERIAL1_OPTIONS` 8 -> 0. Details in `docs/real_drone.md`, "Radio link".
+3. ~~Radio switches~~ **done 2026-11-20**: ch 6 low/mid/high = EKF set 1 GPS / 2 / 3; ch 7 low/mid/high =
+   LOITER / ALT_HOLD / STABILIZE. Arm switch (ch 5) not touched.
+   Still to check on the bench: RC-loss failsafe (radio off while disarmed -> failsafe message) and
+   stick directions (pitch is reversed in the FC, `RC2_REVERSED 1`).
 4. Optional: refine camera_offset `up` by measuring lens-centre and FC-board heights above the table.
 5. **Floor.** Textured mat / tape over ~2.5 x 2.5 m plus the path to the marker.
 6. ~~Commit~~ done 2026-11-20: this folder is now a git checkout (branch `stage0-bench`).

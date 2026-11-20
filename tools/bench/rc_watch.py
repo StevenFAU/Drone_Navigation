@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Read-only: print RC channels 5-7 and flight mode from MAVROS; one EVENT line per change."""
+"""Read-only: print RC channels 5-8 and flight mode from MAVROS; one EVENT line per change.
+RC comes from /mavros/rc/in, or (ELRS receiver in MAVLink mode, where /mavros/rc/in stays empty)
+from the receiver's RC_CHANNELS_OVERRIDE messages seen on /uas1/mavlink_source."""
+import struct
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-from mavros_msgs.msg import RCIn, State
+from mavros_msgs.msg import Mavlink, RCIn, State
 
 
 def ekf_set(v):
@@ -15,6 +19,7 @@ class Watch(Node):
         super().__init__('rc_watch')
         self.ch, self.st, self.last = None, None, {}
         self.create_subscription(RCIn, '/mavros/rc/in', self.on_rc, qos_profile_sensor_data)
+        self.create_subscription(Mavlink, '/uas1/mavlink_source', self.on_mavlink, qos_profile_sensor_data)
         self.create_subscription(State, '/mavros/state', self.on_state, qos_profile_sensor_data)
         self.create_timer(1.0, self.tick)
 
@@ -24,7 +29,15 @@ class Watch(Node):
         return f'ch5 {g(4)}  ch6 {g(5)}  ch7 {g(6)}'
 
     def on_rc(self, m):
-        self.ch = list(m.channels)
+        if m.channels:
+            self.ch = list(m.channels)
+            self.changed()
+
+    def on_mavlink(self, m):
+        if m.msgid != 70:          # RC_CHANNELS_OVERRIDE: u16 chan1..8 first
+            return
+        raw = b''.join(struct.pack('<Q', w) for w in m.payload64) + bytes(16)
+        self.ch = list(struct.unpack_from('<8H', raw, 0))
         self.changed()
 
     def on_state(self, m):
